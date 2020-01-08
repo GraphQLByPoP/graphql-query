@@ -35,7 +35,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             return '';
         }
         // TODO
-        $fieldQuery = json_encode(['request' => print_r($request, true)]);
+        // $fieldQuery = json_encode(['request' => print_r($request, true)]);
         $fieldQuery = '';
         return $fieldQuery;
     }
