@@ -26,7 +26,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
     {
         // If the validation throws an error, display it
         try {
-            $request = $this->parseAndCreateRequest($graphQLQuery, $variables);
+            $parsedData = $this->parseAndCreateRequest($graphQLQuery, $variables);
         } catch (Exception $e) {
             // Save the error
             $errorMessage = $e->getMessage();
@@ -36,8 +36,8 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         }
         // TODO
         $fieldQuery = sprintf(
-            'echo("%s")@request',
-            print_r($request, true)
+            'echo("%s")@parsedData',
+            print_r($parsedData, true)
         );
         // $fieldQuery = '';
         return $fieldQuery;
@@ -57,10 +57,13 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         }
 
         $parser  = new Parser();
-        $request = new Request($parser->parse($payload), $variables);
+        $parsedData = $parser->parse($payload);
+        $request = new Request($parsedData, $variables);
 
+        // If the validation fails, it will throw an exception
         (new RequestValidator())->validate($request);
 
-        return $request;
+        // Return the parsed data
+        return $parsedData;
     }
 }
