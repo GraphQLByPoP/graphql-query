@@ -9,7 +9,7 @@
 [![Total Downloads][ico-downloads]][link-downloads]
 -->
 
-...
+Utilities to transform the query from the GraphQL syntax to the Field query syntax
 
 ## Install
 

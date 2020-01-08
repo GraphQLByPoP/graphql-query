@@ -1,7 +1,7 @@
 {
     "name": "getpop/api-graphql-query",
     "type": "library",
-    "description": "...",
+    "description": "Utilities to transform the query from the GraphQL syntax to the Field query syntax",
     "keywords": [
         "PoP",
         "api-graphql-query"
