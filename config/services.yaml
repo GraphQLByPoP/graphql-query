@@ -1,1 +1,4 @@
 services:
+    graphql_query_convertor:
+        class: \PoP\GraphQLAPIQuery\Schema\GraphQLQueryConvertor
+        public: true
