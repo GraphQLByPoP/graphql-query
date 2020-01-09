@@ -5,6 +5,7 @@ use Exception;
 use InvalidArgumentException;
 use PoP\FieldQuery\QueryUtils;
 use PoP\FieldQuery\QuerySyntax;
+use PoP\FieldQuery\QueryHelpers;
 use Youshido\GraphQL\Parser\Parser;
 use Youshido\GraphQL\Parser\Ast\Field;
 use Youshido\GraphQL\Parser\Ast\Query;
@@ -117,6 +118,11 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                     $rootFieldDirectives .=
                         QuerySyntax::SYMBOL_FIELDDIRECTIVE_SEPARATOR.
                         $includeDirective;
+                    // Also remove the directive from the root field, since it will be added again below
+                    list(
+                        $fieldDirectivesOpeningSymbolPos,
+                    ) = QueryHelpers::listFieldDirectivesSymbolPositions($fragmentRootField);
+                    $fragmentRootField = substr($fragmentRootField, 0, $fieldDirectivesOpeningSymbolPos);
                 } else {
                     $rootFieldDirectives = $includeDirective;
                 }
