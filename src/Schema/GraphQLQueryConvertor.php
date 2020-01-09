@@ -47,19 +47,29 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         return $fieldQuery;
     }
 
+    protected function convertArguments(array $queryArguments): array
+    {
+        // Convert the arguments into an array
+        $arguments = [];
+        foreach ($queryArguments as $argument) {
+            $arguments[$argument->getName()] = $argument->getValue()->getValue();
+        }
+        return $arguments;
+    }
+
     protected function convertField(FieldInterface $field): string
     {
         $fieldQueryInterpreter = FieldQueryInterpreterFacade::getInstance();
 
         // Convert the arguments and directives into an array
-        $arguments = $directives = [];
-        foreach ($field->getArguments() as $argument) {
-            $arguments[$argument->getName()] = $argument->getValue()->getValue();
-        }
+        $arguments = $this->convertArguments($field->getArguments());
+        $directives = [];
         foreach ($field->getDirectives() as $directive) {
-            $directives[] = $fieldQueryInterpreter->composeFieldDirective(
+            $directives[] = $fieldQueryInterpreter->composeDirective(
                 $directive->getName(),
-                $fieldQueryInterpreter->getFieldArgsAsString($directive->getArguments())
+                $fieldQueryInterpreter->getFieldArgsAsString(
+                    $this->convertArguments($directive->getArguments())
+                )
             );
         }
         return $fieldQueryInterpreter->getField(
