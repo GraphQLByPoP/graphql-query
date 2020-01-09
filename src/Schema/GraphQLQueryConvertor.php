@@ -9,6 +9,7 @@ use Youshido\GraphQL\Execution\Request;
 use PoP\Translation\TranslationAPIInterface;
 use PoP\ComponentModel\Schema\FeedbackMessageStoreInterface;
 use Youshido\GraphQL\Validator\RequestValidator\RequestValidator;
+use Youshido\GraphQL\Parser\Ast\Query;
 use PoP\ComponentModel\Facades\Schema\FieldQueryInterpreterFacade;
 
 class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
@@ -39,6 +40,27 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         return $this->convertRequestToFieldQuery($request);
     }
 
+    protected function getFieldFromQuery(Query $query): string
+    {
+        $fieldQueryInterpreter = FieldQueryInterpreterFacade::getInstance();
+
+        // Convert the directives into an array
+        $directives = [];
+        foreach ($query->getDirectives() as $directive) {
+            $directives[] = $fieldQueryInterpreter->composeFieldDirective(
+                $directive->getName(),
+                $fieldQueryInterpreter->getFieldArgsAsString($directive->getArguments())
+            );
+        }
+        return $fieldQueryInterpreter->getField(
+            $query->getName(),
+            $query->getArguments(),
+            $query->getAlias(),
+            false,
+            $directives
+        );
+    }
+
     /**
      * Convert the GraphQL to its equivalent fieldQuery. The GraphQL syntax is explained in https://graphql.org/learn/queries/
      *
@@ -47,18 +69,11 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
      */
     protected function convertRequestToFieldQuery(Request $request): string
     {
-        $fieldQueryInterpreter = FieldQueryInterpreterFacade::getInstance();
         $fieldQueries = [];
-        // $debug = [];
 
         // field
         foreach ($request->getQueries() as $query) {
-            // $debug[] = print_r($query, true);
-            $fieldQueries[] = $fieldQueryInterpreter->getField(
-                $query->getName(),
-                $query->getFields(),
-                $query->getAlias()
-            );
+            $fieldQueries[] = $this->getFieldFromQuery($query);
         }
 
         // nested field
@@ -90,31 +105,42 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         );
         return $fieldQuery;
 
-        // // Testing
-        // // $debug = $request;
-        // $debug = [
-        //     'getAllOperations()' => $request->getAllOperations(),
-        //     'getQueries()' => $request->getQueries(),
-        //     'getFragments()' => $request->getFragments(),
-        //     // 'getFragment($name)' => $request->getFragment($name),
-        //     'getMutations()' => $request->getMutations(),
-        //     'hasQueries()' => $request->hasQueries(),
-        //     'hasMutations()' => $request->hasMutations(),
-        //     'hasFragments()' => $request->hasFragments(),
-        //     'getVariables()' => $request->getVariables(),
-        //     // 'getVariable($name)' => $request->getVariable($name),
-        //     // 'hasVariable($name)' => $request->hasVariable($name),
-        //     'getQueryVariables()' => $request->getQueryVariables(),
-        //     'getFragmentReferences()' => $request->getFragmentReferences(),
-        //     'getVariableReferences()' => $request->getVariableReferences(),
-        // ];
+        // Testing
+        // $debug = $request;
+        $debug = [
+            'getAllOperations()' => $request->getAllOperations(),
+            'getQueries()' => $request->getQueries(),
+            'getFragments()' => $request->getFragments(),
+            // 'getFragment($name)' => $request->getFragment($name),
+            'getMutations()' => $request->getMutations(),
+            'hasQueries()' => $request->hasQueries(),
+            'hasMutations()' => $request->hasMutations(),
+            'hasFragments()' => $request->hasFragments(),
+            'getVariables()' => $request->getVariables(),
+            // 'getVariable($name)' => $request->getVariable($name),
+            // 'hasVariable($name)' => $request->hasVariable($name),
+            'getQueryVariables()' => $request->getQueryVariables(),
+            'getFragmentReferences()' => $request->getFragmentReferences(),
+            'getVariableReferences()' => $request->getVariableReferences(),
 
-        // // Temporary code for testing
-        // $fieldQuery = sprintf(
-        //     'echo("%s")@request',
-        //     print_r($debug, true)
-        // );
-        // return $fieldQuery;
+            'hasArguments()' => $request->hasArguments(),
+            // 'hasArgument($name)' => $request->hasArgument($name),
+            'getArguments()' => $request->getArguments(),
+            // 'getArgument($name)' => $request->getArgument($name),
+            // 'getArgumentValue($name)' => $request->getArgumentValue($name),
+            'getKeyValueArguments()' => $request->getKeyValueArguments(),
+            'hasDirectives()' => $request->hasDirectives(),
+            // 'hasDirective($name)' => $request->hasDirective($name),
+            // 'getDirective($name)' => $request->getDirective($name),
+            'getDirectives()' => $request->getDirectives(),
+        ];
+
+        // Temporary code for testing
+        $fieldQuery = sprintf(
+            'echo("%s")@request',
+            print_r($debug, true)
+        );
+        return $fieldQuery;
     }
 
     /**
