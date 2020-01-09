@@ -3,13 +3,16 @@ namespace PoP\GraphQLAPIQuery\Schema;
 
 use Exception;
 use InvalidArgumentException;
+use PoP\FieldQuery\QueryUtils;
 use PoP\FieldQuery\QuerySyntax;
 use Youshido\GraphQL\Parser\Parser;
 use Youshido\GraphQL\Parser\Ast\Field;
 use Youshido\GraphQL\Parser\Ast\Query;
 use Youshido\GraphQL\Execution\Request;
 use PoP\Translation\TranslationAPIInterface;
+use Youshido\GraphQL\Parser\Ast\FragmentReference;
 use Youshido\GraphQL\Parser\Ast\Interfaces\FieldInterface;
+use PoP\Engine\DirectiveResolvers\IncludeDirectiveResolver;
 use PoP\ComponentModel\Schema\FeedbackMessageStoreInterface;
 use Youshido\GraphQL\Validator\RequestValidator\RequestValidator;
 use PoP\ComponentModel\Facades\Schema\FieldQueryInterpreterFacade;
@@ -68,31 +71,110 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         );
     }
 
-    protected function getFieldsFromQuery(Query $query): array
+    /**
+     * Restrain fields to the model through directive <include(if:isType($model))>
+     *
+     * @return array
+     */
+    protected function restrainFieldsByModel(array $fragmentFields, string $fragmentModel, string $queryField): array
+    {
+        $fieldQueryInterpreter = FieldQueryInterpreterFacade::getInstance();
+        // Create the <include> directive
+        $includeDirective = $fieldQueryInterpreter->composeFieldDirective(
+            IncludeDirectiveResolver::getDirectiveName(),
+            $fieldQueryInterpreter->getFieldArgsAsString([
+                'if' => $fieldQueryInterpreter->getField(
+                    'isType',
+                    [
+                        'type' => $fragmentModel
+                    ]
+                ),
+            ])
+        );
+        $fragmentFields = array_map(
+            function($fragmentField) use($includeDirective, $fieldQueryInterpreter) {
+                // The field can itself contain nested fields. In that case, apply the directive to the root property only
+                $dotPos = QueryUtils::findFirstSymbolPosition($fragmentField, QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL, [QuerySyntax::SYMBOL_FIELDARGS_OPENING, QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING], [QuerySyntax::SYMBOL_FIELDARGS_CLOSING, QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING], QuerySyntax::SYMBOL_FIELDARGS_ARGVALUESTRING_OPENING, QuerySyntax::SYMBOL_FIELDARGS_ARGVALUESTRING_CLOSING);
+                if ($dotPos !== false) {
+                    $fragmentRootField = substr($fragmentField, 0, $dotPos);
+                } else {
+                    $fragmentRootField = $fragmentField;
+                }
+
+                // Add the directive to the current directives from the field
+                $rootFieldDirectives = $fieldQueryInterpreter->getFieldDirectives((string)$fragmentRootField);
+                if ($rootFieldDirectives) {
+                    $rootFieldDirectives .=
+                        QuerySyntax::SYMBOL_FIELDDIRECTIVE_SEPARATOR.
+                        $includeDirective;
+                } else {
+                    $rootFieldDirectives = $includeDirective;
+                }
+
+                return
+                    $fragmentRootField.
+                    QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING.
+                    $rootFieldDirectives.
+                    QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING.
+                    (($dotPos !== false) ? substr($fragmentField, $dotPos) : '');
+            },
+            $fragmentFields
+        );
+        return $fragmentFields;
+    }
+
+    protected function processAndAddFields(Request $request, array &$queryFields, array $fields, string $queryField = ''): void
+    {
+        // Iterate through the query's fields: properties, connections, fragments
+        $queryFieldPath =
+            $queryField ?
+                $queryField.QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL :
+                '';
+        foreach ($fields as $field) {
+            if ($field instanceof Field) {
+                // Fields are leaves in the graph
+                $queryFields[] =
+                    $queryFieldPath.
+                    $this->convertField($field);
+            } elseif ($field instanceof Query) {
+                // Queries are connections
+                $nestedFields = $this->getFieldsFromQuery($request, $field);
+                foreach ($nestedFields as $nestedField) {
+                    $queryFields[] =
+                        $queryFieldPath.
+                        $nestedField;
+                }
+            } elseif ($field instanceof FragmentReference) {
+                // Replace the fragment reference with its resolved information
+                $fragmentReference = $field;
+                $fragmentName = $fragmentReference->getName();
+                $fragment = $request->getFragment($fragmentName);
+                // Get the fields defined in the fragment
+                $fragmentFields = [];
+                $this->processAndAddFields($request, $fragmentFields, $fragment->getFields());
+
+                // Restrain those fields to the indicated model
+                $fragmentModel = $fragment->getModel();
+                $fragmentFields = $this->restrainFieldsByModel($fragmentFields, $fragmentModel, $queryField);
+
+                // Add them to the list of fields in the query
+                foreach ($fragmentFields as $fragmentField) {
+                    $queryFields[] =
+                        $queryFieldPath.
+                        $fragmentField;
+                }
+            }
+        }
+    }
+
+    protected function getFieldsFromQuery(Request $request, Query $query): array
     {
         $queryFields = [];
         $queryField = $this->convertField($query);
 
         // Iterate through the query's fields: properties and connections
         if ($fields = $query->getFields()) {
-            foreach ($fields as $field) {
-                // Fields are leaves in the graph
-                if ($field instanceof Field) {
-                    $queryFields[] =
-                        $queryField.
-                        QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL.
-                        $this->convertField($field);
-                } elseif ($field instanceof Query) {
-                    // Queries are connections
-                    $nestedFields = $this->getFieldsFromQuery($field);
-                    foreach ($nestedFields as $nestedField) {
-                        $queryFields[] =
-                            $queryField.
-                            QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL.
-                            $nestedField;
-                    }
-                }
-            }
+            $this->processAndAddFields($request, $queryFields, $fields, $queryField);
         } else {
             // Otherwise, just add the query field, which doesn't have subfields
             $queryFields[] = $queryField;
@@ -115,7 +197,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         foreach ($request->getQueries() as $query) {
             $fieldQueries = array_merge(
                 $fieldQueries,
-                $this->getFieldsFromQuery($query)
+                $this->getFieldsFromQuery($request, $query)
             );
         }
 
@@ -148,31 +230,31 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         );
         return $fieldQuery;
 
-        // // Testing
-        // // $debug = $request;
-        // $debug = [
-        //     // 'getAllOperations()' => $request->getAllOperations(),
-        //     'getQueries()' => $request->getQueries(),
-        //     // 'getFragments()' => $request->getFragments(),
-        //     // // 'getFragment($name)' => $request->getFragment($name),
-        //     // 'getMutations()' => $request->getMutations(),
-        //     // 'hasQueries()' => $request->hasQueries(),
-        //     // 'hasMutations()' => $request->hasMutations(),
-        //     // 'hasFragments()' => $request->hasFragments(),
-        //     // 'getVariables()' => $request->getVariables(),
-        //     // // 'getVariable($name)' => $request->getVariable($name),
-        //     // // 'hasVariable($name)' => $request->hasVariable($name),
-        //     // 'getQueryVariables()' => $request->getQueryVariables(),
-        //     // 'getFragmentReferences()' => $request->getFragmentReferences(),
-        //     // 'getVariableReferences()' => $request->getVariableReferences(),
-        // ];
+        // Testing
+        // $debug = $request;
+        $debug = [
+            // 'getAllOperations()' => $request->getAllOperations(),
+            'getQueries()' => $request->getQueries(),
+            'getFragments()' => $request->getFragments(),
+            'getFragment($name)' => $request->getFragment('postProperties'),
+            // 'getMutations()' => $request->getMutations(),
+            // 'hasQueries()' => $request->hasQueries(),
+            // 'hasMutations()' => $request->hasMutations(),
+            'hasFragments()' => $request->hasFragments(),
+            // 'getVariables()' => $request->getVariables(),
+            // // 'getVariable($name)' => $request->getVariable($name),
+            // // 'hasVariable($name)' => $request->hasVariable($name),
+            // 'getQueryVariables()' => $request->getQueryVariables(),
+            'getFragmentReferences()' => $request->getFragmentReferences(),
+            // 'getVariableReferences()' => $request->getVariableReferences(),
+        ];
 
-        // // Temporary code for testing
-        // $fieldQuery = sprintf(
-        //     'echo("%s")@request',
-        //     print_r($debug, true)
-        // );
-        // return $fieldQuery;
+        // Temporary code for testing
+        $fieldQuery = sprintf(
+            'echo("%s")@request',
+            print_r($debug, true)
+        );
+        return $fieldQuery;
     }
 
     /**
