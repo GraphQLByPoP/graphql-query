@@ -228,32 +228,6 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             $fieldQueries
         );
         return $fieldQuery;
-
-        // Testing
-        // $debug = $request;
-        $debug = [
-            // 'getAllOperations()' => $request->getAllOperations(),
-            'getQueries()' => $request->getQueries(),
-            'getFragments()' => $request->getFragments(),
-            // 'getFragment($name)' => $request->getFragment('postProperties'),
-            // 'getMutations()' => $request->getMutations(),
-            // 'hasQueries()' => $request->hasQueries(),
-            // 'hasMutations()' => $request->hasMutations(),
-            'hasFragments()' => $request->hasFragments(),
-            // 'getVariables()' => $request->getVariables(),
-            // // 'getVariable($name)' => $request->getVariable($name),
-            // // 'hasVariable($name)' => $request->hasVariable($name),
-            // 'getQueryVariables()' => $request->getQueryVariables(),
-            'getFragmentReferences()' => $request->getFragmentReferences(),
-            // 'getVariableReferences()' => $request->getVariableReferences(),
-        ];
-
-        // Temporary code for testing
-        $fieldQuery = sprintf(
-            'echo("%s")@request',
-            print_r($debug, true)
-        );
-        return $fieldQuery;
     }
 
     /**
