@@ -29,9 +29,11 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
 
     public function convertFromGraphQLToFieldQuery(string $graphQLQuery, ?array $variables): string
     {
-        // If the validation throws an error, display it
         try {
+            // If the validation throws an error, stop parsing the script
             $request = $this->parseAndCreateRequest($graphQLQuery, $variables);
+            // Converting the query could also throw an Exception
+            $fieldQuery = $this->convertRequestToFieldQuery($request);
         } catch (Exception $e) {
             // Save the error
             $errorMessage = $e->getMessage();
@@ -39,15 +41,18 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             // Returning nothing will not process the query
             return '';
         }
-        return $this->convertRequestToFieldQuery($request);
+        return $fieldQuery;
     }
 
     protected function convertField(FieldInterface $field): string
     {
         $fieldQueryInterpreter = FieldQueryInterpreterFacade::getInstance();
 
-        // Convert the directives into an array
-        $directives = [];
+        // Convert the arguments and directives into an array
+        $arguments = $directives = [];
+        foreach ($field->getArguments() as $argument) {
+            $arguments[$argument->getName()] = $argument->getValue()->getValue();
+        }
         foreach ($field->getDirectives() as $directive) {
             $directives[] = $fieldQueryInterpreter->composeFieldDirective(
                 $directive->getName(),
@@ -56,7 +61,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         }
         return $fieldQueryInterpreter->getField(
             $field->getName(),
-            $field->getArguments(),
+            $arguments,
             $field->getAlias(),
             false,
             $directives
@@ -146,20 +151,20 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         // // Testing
         // // $debug = $request;
         // $debug = [
-        //     'getAllOperations()' => $request->getAllOperations(),
+        //     // 'getAllOperations()' => $request->getAllOperations(),
         //     'getQueries()' => $request->getQueries(),
-        //     'getFragments()' => $request->getFragments(),
-        //     // 'getFragment($name)' => $request->getFragment($name),
-        //     'getMutations()' => $request->getMutations(),
-        //     'hasQueries()' => $request->hasQueries(),
-        //     'hasMutations()' => $request->hasMutations(),
-        //     'hasFragments()' => $request->hasFragments(),
-        //     'getVariables()' => $request->getVariables(),
-        //     // 'getVariable($name)' => $request->getVariable($name),
-        //     // 'hasVariable($name)' => $request->hasVariable($name),
-        //     'getQueryVariables()' => $request->getQueryVariables(),
-        //     'getFragmentReferences()' => $request->getFragmentReferences(),
-        //     'getVariableReferences()' => $request->getVariableReferences(),
+        //     // 'getFragments()' => $request->getFragments(),
+        //     // // 'getFragment($name)' => $request->getFragment($name),
+        //     // 'getMutations()' => $request->getMutations(),
+        //     // 'hasQueries()' => $request->hasQueries(),
+        //     // 'hasMutations()' => $request->hasMutations(),
+        //     // 'hasFragments()' => $request->hasFragments(),
+        //     // 'getVariables()' => $request->getVariables(),
+        //     // // 'getVariable($name)' => $request->getVariable($name),
+        //     // // 'hasVariable($name)' => $request->hasVariable($name),
+        //     // 'getQueryVariables()' => $request->getQueryVariables(),
+        //     // 'getFragmentReferences()' => $request->getFragmentReferences(),
+        //     // 'getVariableReferences()' => $request->getVariableReferences(),
         // ];
 
         // // Temporary code for testing
