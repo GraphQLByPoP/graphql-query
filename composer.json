@@ -19,6 +19,7 @@
     "prefer-stable": true,
     "require": {
         "php" : "~7.1",
+        "getpop/field-query": "^1.0@dev",
         "getpop/api-graphql": "^1.0@dev",
         "youshido/graphql": "^1.7"
     },
