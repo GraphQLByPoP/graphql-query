@@ -12,6 +12,7 @@ use Youshido\GraphQL\Parser\Ast\Query;
 use Youshido\GraphQL\Execution\Request;
 use PoP\Translation\TranslationAPIInterface;
 use Youshido\GraphQL\Parser\Ast\FragmentReference;
+use Youshido\GraphQL\Parser\Ast\TypedFragmentReference;
 use Youshido\GraphQL\Parser\Ast\Interfaces\FieldInterface;
 use PoP\Engine\DirectiveResolvers\IncludeDirectiveResolver;
 use PoP\ComponentModel\Schema\FeedbackMessageStoreInterface;
@@ -87,7 +88,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
      *
      * @return array
      */
-    protected function restrainFieldsByModel(array $fragmentFields, string $fragmentModel, string $queryField): array
+    protected function restrainFieldsByType(array $fragmentFields, string $fragmentModel, string $queryField): array
     {
         $fieldQueryInterpreter = FieldQueryInterpreterFacade::getInstance();
         // Create the <include> directive
@@ -160,21 +161,28 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                         $queryFieldPath.
                         $nestedField;
                 }
-            } elseif ($field instanceof FragmentReference) {
+            } elseif ($field instanceof FragmentReference || $field instanceof TypedFragmentReference) {
                 // Replace the fragment reference with its resolved information
                 $fragmentReference = $field;
-                $fragmentName = $fragmentReference->getName();
-                $fragment = $request->getFragment($fragmentName);
-                // Get the fields defined in the fragment
-                $fragmentFields = [];
-                $this->processAndAddFields($request, $fragmentFields, $fragment->getFields());
+                if ($fragmentReference instanceof FragmentReference) {
+                    $fragmentName = $fragmentReference->getName();
+                    $fragment = $request->getFragment($fragmentName);
+                    $fragmentFields = $fragment->getFields();
+                    $fragmentType = $fragment->getModel();
+                } elseif ($fragmentReference instanceof TypedFragmentReference) {
+                    $fragmentFields = $fragmentReference->getFields();
+                    $fragmentType = $fragmentReference->getTypeName();
+                }
 
-                // Restrain those fields to the indicated model
-                $fragmentModel = $fragment->getModel();
-                $fragmentFields = $this->restrainFieldsByModel($fragmentFields, $fragmentModel, $queryField);
+                // Get the fields defined in the fragment
+                $fragmentConvertedFields = [];
+                $this->processAndAddFields($request, $fragmentConvertedFields, $fragmentFields);
+
+                // Restrain those fields to the indicated type
+                $fragmentConvertedFields = $this->restrainFieldsByType($fragmentConvertedFields, $fragmentType, $queryField);
 
                 // Add them to the list of fields in the query
-                foreach ($fragmentFields as $fragmentField) {
+                foreach ($fragmentConvertedFields as $fragmentField) {
                     $queryFields[] =
                         $queryFieldPath.
                         $fragmentField;
@@ -208,37 +216,12 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
     protected function convertRequestToFieldQuery(Request $request): string
     {
         $fieldQueries = [];
-
-        // field
         foreach ($request->getQueries() as $query) {
             $fieldQueries = array_merge(
                 $fieldQueries,
                 $this->getFieldsFromQuery($request, $query)
             );
         }
-
-        // nested field
-
-        // field arguments
-
-        // aliases
-
-        // fragments
-
-        // operation name
-
-        // variables
-
-        //variables inside fragments
-
-        // default variables
-
-        // directives
-
-        // inline fragments
-
-        // mutations
-        // TODO
 
         $fieldQuery = implode(
             QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
@@ -252,7 +235,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             // 'getAllOperations()' => $request->getAllOperations(),
             'getQueries()' => $request->getQueries(),
             'getFragments()' => $request->getFragments(),
-            'getFragment($name)' => $request->getFragment('postProperties'),
+            // 'getFragment($name)' => $request->getFragment('postProperties'),
             // 'getMutations()' => $request->getMutations(),
             // 'hasQueries()' => $request->hasQueries(),
             // 'hasMutations()' => $request->hasMutations(),
