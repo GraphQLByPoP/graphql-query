@@ -17,6 +17,7 @@ use Youshido\GraphQL\Parser\Ast\Interfaces\FieldInterface;
 use PoP\Engine\DirectiveResolvers\IncludeDirectiveResolver;
 use PoP\ComponentModel\Schema\FeedbackMessageStoreInterface;
 use Youshido\GraphQL\Validator\RequestValidator\RequestValidator;
+use Youshido\GraphQL\Exception\Interfaces\LocationableExceptionInterface;
 use PoP\ComponentModel\Facades\Schema\FieldQueryInterpreterFacade;
 
 class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
@@ -42,6 +43,16 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         } catch (Exception $e) {
             // Save the error
             $errorMessage = $e->getMessage();
+            // Retrieve the location of the error
+            if ($e instanceof LocationableExceptionInterface) {
+                $location = $e->getLocation()->toArray();
+                $errorMessage = sprintf(
+                    $this->translationAPI->__('%1$s (line: %2$s, column: %3$s)', 'field-query'),
+                    $errorMessage,
+                    $location['line'],
+                    $location['column']
+                );
+            }
             $this->feedbackMessageStore->addQueryError($errorMessage);
             // Returning nothing will not process the query
             return '';
