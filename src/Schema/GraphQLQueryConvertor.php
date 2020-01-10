@@ -116,9 +116,11 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 // Add the directive to the current directives from the field
                 $rootFieldDirectives = $fieldQueryInterpreter->getFieldDirectives((string)$fragmentRootField);
                 if ($rootFieldDirectives) {
-                    $rootFieldDirectives .=
+                    // The include directive comes first, so if it evals to false the upcoming directives are not executed
+                    $rootFieldDirectives =
+                        $includeDirective.
                         QuerySyntax::SYMBOL_FIELDDIRECTIVE_SEPARATOR.
-                        $includeDirective;
+                        $rootFieldDirectives;
                     // Also remove the directive from the root field, since it will be added again below
                     list(
                         $fieldDirectivesOpeningSymbolPos,
