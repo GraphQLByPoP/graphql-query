@@ -110,7 +110,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         );
         $fragmentFields = array_map(
             function($fragmentField) use($includeDirective, $fieldQueryInterpreter) {
-                // The field can itself contain nested fields. In that case, apply the directive to the root property only
+                // The field can itself compose other fields. In that case, apply the directive to the root property only
                 $dotPos = QueryUtils::findFirstSymbolPosition($fragmentField, QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL, [QuerySyntax::SYMBOL_FIELDARGS_OPENING, QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING], [QuerySyntax::SYMBOL_FIELDARGS_CLOSING, QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING], QuerySyntax::SYMBOL_FIELDARGS_ARGVALUESTRING_OPENING, QuerySyntax::SYMBOL_FIELDARGS_ARGVALUESTRING_CLOSING);
                 if ($dotPos !== false) {
                     $fragmentRootField = substr($fragmentField, 0, $dotPos);
