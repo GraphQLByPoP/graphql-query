@@ -72,11 +72,9 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         $arguments = $this->convertArguments($field->getArguments());
         $directives = [];
         foreach ($field->getDirectives() as $directive) {
-            $directives[] = $fieldQueryInterpreter->composeDirective(
+            $directives[] = $fieldQueryInterpreter->getDirective(
                 $directive->getName(),
-                $fieldQueryInterpreter->getFieldArgsAsString(
-                    $this->convertArguments($directive->getArguments())
-                )
+                $this->convertArguments($directive->getArguments())
             );
         }
         return $fieldQueryInterpreter->getField(
