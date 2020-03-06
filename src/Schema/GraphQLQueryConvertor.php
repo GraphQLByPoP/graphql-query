@@ -33,7 +33,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         $this->feedbackMessageStore = $feedbackMessageStore;
     }
 
-    public function convertFromGraphQLToFieldQuery(string $graphQLQuery, ?array $variables): string
+    public function convertFromGraphQLToFieldQuery(string $graphQLQuery, ?array $variables = []): string
     {
         try {
             // If the validation throws an error, stop parsing the script
