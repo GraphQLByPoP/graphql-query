@@ -110,7 +110,6 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         // Convert the arguments into an array
         $arguments = [];
         foreach ($queryArguments as $argument) {
-            // var_dump('argument', $argument);
             $value = $argument->getValue();
             $arguments[$argument->getName()] = $this->convertArgumentValue($value->getValue());
         }
