@@ -24,6 +24,8 @@ use PoP\GraphQLAPIQuery\Schema\QuerySymbols;
 use Youshido\GraphQL\Parser\Ast\ArgumentValue\VariableReference;
 use Youshido\GraphQL\Parser\Ast\ArgumentValue\Variable;
 use Youshido\GraphQL\Parser\Ast\ArgumentValue\InputList;
+use Youshido\GraphQL\Parser\Ast\ArgumentValue\InputObject;
+use Youshido\GraphQL\Parser\Ast\ArgumentValue\Literal;
 
 class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
 {
@@ -75,7 +77,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         /**
          * If the value is of type InputList, then resolve the array with its variables (under `getValue`)
          */
-        if ($value instanceof InputList) {
+        if ($value instanceof InputList || $value instanceof InputObject) {
             return array_map(
                 [$this, 'convertArgumentValue'],
                 $value->getValue()
@@ -98,7 +100,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
              * then replace it with an expression, so its value can be computed on runtime
              */
             return QueryHelpers::getExpressionQuery($value->getName());
-        } elseif ($value instanceof Variable) {
+        } elseif ($value instanceof Variable || $value instanceof Literal) {
             return $value->getValue();
         }
         // Otherwise it may be a scalar value
@@ -111,7 +113,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         $arguments = [];
         foreach ($queryArguments as $argument) {
             $value = $argument->getValue();
-            $arguments[$argument->getName()] = $this->convertArgumentValue($value->getValue());
+            $arguments[$argument->getName()] = $this->convertArgumentValue($value);
         }
         return $arguments;
     }
