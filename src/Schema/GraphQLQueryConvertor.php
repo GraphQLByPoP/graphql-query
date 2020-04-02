@@ -19,6 +19,9 @@ use PoP\ComponentModel\Schema\FeedbackMessageStoreInterface;
 use Youshido\GraphQL\Validator\RequestValidator\RequestValidator;
 use Youshido\GraphQL\Exception\Interfaces\LocationableExceptionInterface;
 use PoP\ComponentModel\Facades\Schema\FieldQueryInterpreterFacade;
+use PoP\GraphQLAPIQuery\ComponentConfiguration;
+use PoP\GraphQLAPIQuery\Schema\QuerySymbols;
+use Youshido\GraphQL\Parser\Ast\ArgumentValue\VariableReference;
 
 class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
 {
@@ -59,7 +62,20 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         // Convert the arguments into an array
         $arguments = [];
         foreach ($queryArguments as $argument) {
-            $arguments[$argument->getName()] = $argument->getValue()->getValue();
+            $value = $argument->getValue();
+            /**
+             * If the value is a reference to a variable, and its name starts with "_",
+             * then replace it with an expression, so its value can be computed on runtime
+             */
+            if (
+                ComponentConfiguration::enableVariablesAsExpressions() &&
+                $value instanceof VariableReference &&
+                substr($value->getName(), 0, strlen(QuerySymbols::VARIABLE_AS_EXPRESSION_NAME_PREFIX)) == QuerySymbols::VARIABLE_AS_EXPRESSION_NAME_PREFIX
+            ) {
+                $arguments[$argument->getName()] = QueryHelpers::getExpressionQuery($value->getName());
+            } else {
+                $arguments[$argument->getName()] = $value->getValue();
+            }
         }
         return $arguments;
     }
