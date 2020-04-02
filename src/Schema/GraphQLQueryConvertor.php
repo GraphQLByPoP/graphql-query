@@ -22,6 +22,8 @@ use PoP\ComponentModel\Facades\Schema\FieldQueryInterpreterFacade;
 use PoP\GraphQLAPIQuery\ComponentConfiguration;
 use PoP\GraphQLAPIQuery\Schema\QuerySymbols;
 use Youshido\GraphQL\Parser\Ast\ArgumentValue\VariableReference;
+use Youshido\GraphQL\Parser\Ast\ArgumentValue\Variable;
+use Youshido\GraphQL\Parser\Ast\ArgumentValue\InputList;
 
 class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
 {
@@ -68,25 +70,49 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         return substr($variableName, 0, strlen(QuerySymbols::VARIABLE_AS_EXPRESSION_NAME_PREFIX)) == QuerySymbols::VARIABLE_AS_EXPRESSION_NAME_PREFIX;
     }
 
+    protected function convertArgumentValue($value)
+    {
+        /**
+         * If the value is of type InputList, then resolve the array with its variables (under `getValue`)
+         */
+        if ($value instanceof InputList) {
+            return array_map(
+                [$this, 'convertArgumentValue'],
+                $value->getValue()
+            );
+        } elseif (is_array($value)) {
+            /**
+             * When coming from the InputList, its `getValue` is an array of Variables
+             */
+            return array_map(
+                [$this, 'convertArgumentValue'],
+                $value
+            );
+        } elseif (
+            ComponentConfiguration::enableVariablesAsExpressions() &&
+            $value instanceof VariableReference &&
+            $this->treatVariableAsExpression($value->getName())
+        ) {
+            /**
+             * If the value is a reference to a variable, and its name starts with "_",
+             * then replace it with an expression, so its value can be computed on runtime
+             */
+            return QueryHelpers::getExpressionQuery($value->getName());
+        } elseif ($value instanceof Variable) {
+            return $value->getValue();
+        }
+        // Otherwise it may be a scalar value
+        return $value;
+    }
+
     protected function convertArguments(array $queryArguments): array
     {
         // Convert the arguments into an array
         $arguments = [];
         foreach ($queryArguments as $argument) {
+            // var_dump('argument', $argument);
             $value = $argument->getValue();
-            /**
-             * If the value is a reference to a variable, and its name starts with "_",
-             * then replace it with an expression, so its value can be computed on runtime
-             */
-            if (
-                ComponentConfiguration::enableVariablesAsExpressions() &&
-                $value instanceof VariableReference &&
-                $this->treatVariableAsExpression($value->getName())
-            ) {
-                $arguments[$argument->getName()] = QueryHelpers::getExpressionQuery($value->getName());
-            } else {
-                $arguments[$argument->getName()] = $value->getValue();
-            }
+            $arguments[$argument->getName()] = $this->convertArgumentValue($value->getValue());
         }
         return $arguments;
     }
