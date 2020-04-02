@@ -57,6 +57,17 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         return $fieldQuery;
     }
 
+    /**
+     * Indicates if the variable must be dealt with as an expression: if its name starts with "_"
+     *
+     * @param string $variableName
+     * @return boolean
+     */
+    public function treatVariableAsExpression(string $variableName): bool
+    {
+        return substr($variableName, 0, strlen(QuerySymbols::VARIABLE_AS_EXPRESSION_NAME_PREFIX)) == QuerySymbols::VARIABLE_AS_EXPRESSION_NAME_PREFIX;
+    }
+
     protected function convertArguments(array $queryArguments): array
     {
         // Convert the arguments into an array
@@ -70,7 +81,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             if (
                 ComponentConfiguration::enableVariablesAsExpressions() &&
                 $value instanceof VariableReference &&
-                substr($value->getName(), 0, strlen(QuerySymbols::VARIABLE_AS_EXPRESSION_NAME_PREFIX)) == QuerySymbols::VARIABLE_AS_EXPRESSION_NAME_PREFIX
+                $this->treatVariableAsExpression($value->getName())
             ) {
                 $arguments[$argument->getName()] = QueryHelpers::getExpressionQuery($value->getName());
             } else {
