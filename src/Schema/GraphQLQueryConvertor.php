@@ -87,6 +87,8 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
              * then replace it with an expression, so its value can be computed on runtime
              */
             return QueryHelpers::getExpressionQuery($value->getName());
+        } elseif ($value instanceof VariableReference || $value instanceof Variable || $value instanceof Literal) {
+            return $value->getValue();
         } elseif (is_array($value)) {
             /**
              * When coming from the InputList, its `getValue` is an array of Variables
@@ -100,8 +102,6 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 [$this, 'convertArgumentValue'],
                 $value->getValue()
             );
-        } elseif ($value instanceof Variable || $value instanceof Literal || $value instanceof VariableReference) {
-            return $value->getValue();
         }
         // Otherwise it may be a scalar value
         return $value;
