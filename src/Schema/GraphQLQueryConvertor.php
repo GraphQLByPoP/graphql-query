@@ -77,11 +77,16 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         /**
          * If the value is of type InputList, then resolve the array with its variables (under `getValue`)
          */
-        if ($value instanceof InputList || $value instanceof InputObject) {
-            return array_map(
-                [$this, 'convertArgumentValue'],
-                $value->getValue()
-            );
+        if (
+            $value instanceof VariableReference &&
+            ComponentConfiguration::enableVariablesAsExpressions() &&
+            $this->treatVariableAsExpression($value->getName())
+        ) {
+            /**
+             * If the value is a reference to a variable, and its name starts with "_",
+             * then replace it with an expression, so its value can be computed on runtime
+             */
+            return QueryHelpers::getExpressionQuery($value->getName());
         } elseif (is_array($value)) {
             /**
              * When coming from the InputList, its `getValue` is an array of Variables
@@ -90,17 +95,12 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 [$this, 'convertArgumentValue'],
                 $value
             );
-        } elseif (
-            ComponentConfiguration::enableVariablesAsExpressions() &&
-            $value instanceof VariableReference &&
-            $this->treatVariableAsExpression($value->getName())
-        ) {
-            /**
-             * If the value is a reference to a variable, and its name starts with "_",
-             * then replace it with an expression, so its value can be computed on runtime
-             */
-            return QueryHelpers::getExpressionQuery($value->getName());
-        } elseif ($value instanceof Variable || $value instanceof Literal) {
+        } elseif ($value instanceof InputList || $value instanceof InputObject) {
+            return array_map(
+                [$this, 'convertArgumentValue'],
+                $value->getValue()
+            );
+        } elseif ($value instanceof Variable || $value instanceof Literal || $value instanceof VariableReference) {
             return $value->getValue();
         }
         // Otherwise it may be a scalar value
