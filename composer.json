@@ -17,24 +17,6 @@
     ],
     "minimum-stability": "dev",
     "prefer-stable": true,
-    "repositories": [
-        {
-            "type": "package",
-            "package": {
-                "name": "getpop/graphql-parser",
-                "version": "dev-master",
-                "source": {
-                    "type" : "git",
-                    "url" : "https://github.com/getpop/graphql-parser.git",
-                    "reference" : "master"
-                },
-                "dist": {
-                    "url": "https://github.com/getpop/graphql-parser/archive/master.zip",
-                    "type": "zip"
-                }
-            }
-        }
-    ],
     "require": {
         "php" : "~7.1",
         "getpop/field-query": "^1.0@dev",
