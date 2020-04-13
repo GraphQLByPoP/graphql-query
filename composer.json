@@ -19,10 +19,10 @@
     "prefer-stable": true,
     "require": {
         "php" : "~7.1",
-        "getpop/field-query": "^1.0@dev",
-        "getpop/engine": "^1.0@dev",
-        "getpop/api-graphql": "^1.0@dev",
-        "getpop/graphql-parser": "dev-master"
+        "getpop/field-query": "~0.1",
+        "getpop/engine": "~0.1",
+        "getpop/api-graphql": "~0.1",
+        "getpop/graphql-parser": "~0.1"
     },
     "require-dev": {
         "phpunit/phpunit" : ">=7.0",
