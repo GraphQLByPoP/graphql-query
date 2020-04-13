@@ -77,8 +77,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         /**
          * If the value is of type InputList, then resolve the array with its variables (under `getValue`)
          */
-        if (
-            $value instanceof VariableReference &&
+        if ($value instanceof VariableReference &&
             ComponentConfiguration::enableVariablesAsExpressions() &&
             $this->treatVariableAsExpression($value->getName())
         ) {
@@ -161,7 +160,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             ])
         );
         $fragmentFields = array_map(
-            function($fragmentField) use($includeDirective, $fieldQueryInterpreter) {
+            function ($fragmentField) use ($includeDirective, $fieldQueryInterpreter) {
                 // The field can itself compose other fields. In that case, apply the directive to the root property only
                 $dotPos = QueryUtils::findFirstSymbolPosition($fragmentField, QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL, [QuerySyntax::SYMBOL_FIELDARGS_OPENING, QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING], [QuerySyntax::SYMBOL_FIELDARGS_CLOSING, QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING], QuerySyntax::SYMBOL_FIELDARGS_ARGVALUESTRING_OPENING, QuerySyntax::SYMBOL_FIELDARGS_ARGVALUESTRING_CLOSING);
                 if ($dotPos !== false) {
@@ -175,8 +174,8 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 if ($rootFieldDirectives) {
                     // The include directive comes first, so if it evals to false the upcoming directives are not executed
                     $rootFieldDirectives =
-                        $includeDirective.
-                        QuerySyntax::SYMBOL_FIELDDIRECTIVE_SEPARATOR.
+                        $includeDirective .
+                        QuerySyntax::SYMBOL_FIELDDIRECTIVE_SEPARATOR .
                         $rootFieldDirectives;
                     // Also remove the directive from the root field, since it will be added again below
                     list(
@@ -188,10 +187,10 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 }
 
                 return
-                    $fragmentRootField.
-                    QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING.
-                    $rootFieldDirectives.
-                    QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING.
+                    $fragmentRootField .
+                    QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING .
+                    $rootFieldDirectives .
+                    QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING .
                     (($dotPos !== false) ? substr($fragmentField, $dotPos) : '');
             },
             $fragmentFields
@@ -204,20 +203,20 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         // Iterate through the query's fields: properties, connections, fragments
         $queryFieldPath =
             $queryField ?
-                $queryField.QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL :
+                $queryField . QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL :
                 '';
         foreach ($fields as $field) {
             if ($field instanceof Field) {
                 // Fields are leaves in the graph
                 $queryFields[] =
-                    $queryFieldPath.
+                    $queryFieldPath .
                     $this->convertField($field);
             } elseif ($field instanceof Query) {
                 // Queries are connections
                 $nestedFields = $this->getFieldsFromQuery($request, $field);
                 foreach ($nestedFields as $nestedField) {
                     $queryFields[] =
-                        $queryFieldPath.
+                        $queryFieldPath .
                         $nestedField;
                 }
             } elseif ($field instanceof FragmentReference || $field instanceof TypedFragmentReference) {
@@ -243,7 +242,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 // Add them to the list of fields in the query
                 foreach ($fragmentConvertedFields as $fragmentField) {
                     $queryFields[] =
-                        $queryFieldPath.
+                        $queryFieldPath .
                         $fragmentField;
                 }
             }

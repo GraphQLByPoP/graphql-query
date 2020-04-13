@@ -23,4 +23,3 @@ class ComponentConfiguration extends AbstractComponentConfiguration
         return $selfProperty;
     }
 }
-

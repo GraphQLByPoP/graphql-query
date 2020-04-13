@@ -10,4 +10,3 @@ class Environment
         return isset($_ENV[self::ENABLE_VARIABLES_AS_EXPRESSIONS]) ? strtolower($_ENV[self::ENABLE_VARIABLES_AS_EXPRESSIONS]) == "true" : false;
     }
 }
-
