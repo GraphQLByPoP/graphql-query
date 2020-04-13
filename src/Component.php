@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace PoP\GraphQLAPIQuery;
 
 use PoP\GraphQLAPI\Component as GraphQLAPIComponent;

@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace PoP\GraphQLAPIQuery\Facades;
 
 use PoP\GraphQLAPIQuery\Schema\GraphQLQueryConvertorInterface;
