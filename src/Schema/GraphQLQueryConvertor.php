@@ -57,7 +57,9 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             $location = ($e instanceof LocationableExceptionInterface) ?
                 $e->getLocation()->toArray() :
                 null;
-            $this->feedbackMessageStore->addQueryError($errorMessage, $location);
+            // $locationKey = GraphQLQueryUtils::convertLocationArrayIntoString($location['line'], $location['column']);
+            // $this->feedbackMessageStore->addQueryError($errorMessage, $locationKey);
+            $this->feedbackMessageStore->addQueryError($errorMessage, ['location' => $location]);
             // Returning nothing will not process the query
             return '';
         }
@@ -164,7 +166,8 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         );
         $fragmentFields = array_map(
             function ($fragmentField) use ($includeDirective, $fieldQueryInterpreter) {
-                // The field can itself compose other fields. In that case, apply the directive to the root property only
+                // The field can itself compose other fields. In that case,
+                // apply the directive to the root property only
                 $dotPos = QueryUtils::findFirstSymbolPosition($fragmentField, QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL, [QuerySyntax::SYMBOL_FIELDARGS_OPENING, QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING], [QuerySyntax::SYMBOL_FIELDARGS_CLOSING, QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING], QuerySyntax::SYMBOL_FIELDARGS_ARGVALUESTRING_OPENING, QuerySyntax::SYMBOL_FIELDARGS_ARGVALUESTRING_CLOSING);
                 if ($dotPos !== false) {
                     $fragmentRootField = substr($fragmentField, 0, $dotPos);
