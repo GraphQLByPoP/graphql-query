@@ -20,9 +20,9 @@
     "require": {
         "php" : "~7.1",
         "getpop/field-query": "~0.1",
-        "getpop/engine": "~0.1",
-        "getpop/api-graphql": "~0.1",
-        "getpop/graphql-parser": "~0.1"
+        "getpop/engine": "dev-master",
+        "getpop/api-graphql": "dev-master",
+        "getpop/graphql-parser": "dev-master"
     },
     "require-dev": {
         "phpstan/phpstan": "^0.12",
