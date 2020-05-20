@@ -14,6 +14,8 @@ use PoP\Root\Component\YAMLServicesTrait;
  */
 class Component extends AbstractComponent
 {
+    use YAMLServicesTrait, CanDisableComponentTrait;
+    
     // const VERSION = '0.1.0';
 
     public static function getDependedComponentClasses(): array
@@ -23,7 +25,6 @@ class Component extends AbstractComponent
             \PoP\GraphQLAPI\Component::class,
         ];
     }
-    use YAMLServicesTrait, CanDisableComponentTrait;
 
     /**
      * Initialize services
