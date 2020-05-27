@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace PoP\GraphQLAPIQuery;
 
-use PoP\ComponentModel\ComponentConfiguration\AbstractComponentConfiguration;
+use PoP\ComponentModel\ComponentConfiguration\ComponentConfigurationTrait;
 
-class ComponentConfiguration extends AbstractComponentConfiguration
+class ComponentConfiguration
 {
+    use ComponentConfigurationTrait;
+
     private static $enableVariablesAsExpressions;
 
     public static function enableVariablesAsExpressions(): bool
@@ -18,7 +20,7 @@ class ComponentConfiguration extends AbstractComponentConfiguration
         $callback = [Environment::class, 'enableVariablesAsExpressions'];
 
         // Initialize property from the environment/hook
-        self::maybeInitEnvironmentVariable(
+        self::maybeInitializeConfigurationValue(
             $envVariable,
             $selfProperty,
             $callback
