@@ -147,17 +147,30 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
      *
      * @return array
      */
-    protected function restrainFieldsByType(array $fragmentFields, string $fragmentModel, string $queryField): array
+    protected function restrainFieldsByTypeOrInterface(array $fragmentFields, string $fragmentModel, string $queryField): array
     {
         $fieldQueryInterpreter = FieldQueryInterpreterFacade::getInstance();
-        // Create the <include> directive
+        // Create the <include> directive, if the fragment references the type or interface
         $includeDirective = $fieldQueryInterpreter->composeFieldDirective(
             IncludeDirectiveResolver::getDirectiveName(),
             $fieldQueryInterpreter->getFieldArgsAsString([
                 'if' => $fieldQueryInterpreter->getField(
-                    'isType',
+                    'or',
                     [
-                        'type' => $fragmentModel
+                        'values' => [
+                            $fieldQueryInterpreter->getField(
+                                'isType',
+                                [
+                                    'type' => $fragmentModel
+                                ]
+                            ),
+                            $fieldQueryInterpreter->getField(
+                                'implements',
+                                [
+                                    'interface' => $fragmentModel
+                                ]
+                            )
+                        ],
                     ]
                 ),
             ])
@@ -241,7 +254,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 $this->processAndAddFields($request, $fragmentConvertedFields, $fragmentFields);
 
                 // Restrain those fields to the indicated type
-                $fragmentConvertedFields = $this->restrainFieldsByType($fragmentConvertedFields, $fragmentType, $queryField);
+                $fragmentConvertedFields = $this->restrainFieldsByTypeOrInterface($fragmentConvertedFields, $fragmentType, $queryField);
 
                 // Add them to the list of fields in the query
                 foreach ($fragmentConvertedFields as $fragmentField) {
