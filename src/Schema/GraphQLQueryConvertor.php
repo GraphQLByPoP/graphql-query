@@ -45,11 +45,36 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
 
     public function convertFromGraphQLToFieldQuery(string $graphQLQuery, ?array $variables = []): string
     {
+        $operationFieldQueries = $this->convertFromGraphQLToFieldQueries($graphQLQuery, $variables);
+        // if (true) {
+        //     $numberOfConnections = array_map(
+        //         function ($fieldWithPathFromRoot) {
+        //             return substr_count($fieldWithPathFromRoot, QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL);
+        //         },
+        //         $fieldQueries
+        //     );
+        //     var_dump($fieldQueries, $numberOfConnections);
+        // }
+        $fieldQuery = '';
+        foreach ($operationFieldQueries as $operation => $fieldQueries) {
+            $fieldQuery .=
+                QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR .
+                implode(
+                    QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
+                    $fieldQueries
+                );
+        }
+        return $fieldQuery;
+    }
+
+    public function convertFromGraphQLToFieldQueries(string $graphQLQuery, ?array $variables = []): array
+    {
         try {
             // If the validation throws an error, stop parsing the script
             $request = $this->parseAndCreateRequest($graphQLQuery, $variables);
             // Converting the query could also throw an Exception
-            $fieldQuery = $this->convertRequestToFieldQuery($request);
+            $fieldQueries = $this->convertRequestToFieldQueries($request);
+            // var_dump('$fieldQueries', $fieldQueries);
         } catch (Exception $e) {
             // Save the error
             $errorMessage = $e->getMessage();
@@ -59,9 +84,9 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 null;
             $this->feedbackMessageStore->addQueryError($errorMessage, ['location' => $location]);
             // Returning nothing will not process the query
-            return '';
+            return [];
         }
-        return $fieldQuery;
+        return $fieldQueries;
     }
 
     /**
@@ -283,26 +308,27 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
     }
 
     /**
-     * Convert the GraphQL to its equivalent fieldQuery. The GraphQL syntax is explained in https://graphql.org/learn/queries/
+     * Convert the GraphQL to its equivalent fieldQuery.
+     * The GraphQL syntax is explained in graphql.org
      *
-     * @param Request $request
-     * @return string
+     * @see https://graphql.org/learn/queries/
      */
-    protected function convertRequestToFieldQuery(Request $request): string
+    protected function convertRequestToFieldQueries(Request $request): array
     {
         $fieldQueries = [];
         foreach ($request->getQueries() as $query) {
-            $fieldQueries = array_merge(
-                $fieldQueries,
+            $operationLocation = $query->getLocation();
+            $operationID = sprintf(
+                '%s-%s',
+                $operationLocation->getLine(),
+                $operationLocation->getColumn()
+            );
+            $fieldQueries[$operationID] = array_merge(
+                $fieldQueries[$operationID] ?? [],
                 $this->getFieldsFromQuery($request, $query)
             );
         }
-
-        $fieldQuery = implode(
-            QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
-            $fieldQueries
-        );
-        return $fieldQuery;
+        return $fieldQueries;
     }
 
     /**
