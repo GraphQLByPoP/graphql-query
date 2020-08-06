@@ -57,13 +57,35 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         //     var_dump($fieldQueries, $numberOfConnections);
         // }
         $fieldQueries = [];
+        $operationDepth = 0;
         foreach ($operationFieldQueries as $operationID => $fieldQueryLevels) {
             foreach ($fieldQueryLevels as $fieldQueryLevel) {
-                $fieldQueries[] = implode(
-                    QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL,
+                /**
+                 * Make multi-query batches be executed in order:
+                 * Prepend the 'self' field to the field to be queried,
+                 * as many times as the dept from all previous operations
+                 * minus one, so the field stands on the tree at the same level
+                 * as the last field from the previous operation in the
+                 * execution pipeline.
+                 */
+                $fieldQueryToExecute = [];
+                for ($i = 0; $i <$operationDepth-1; $i++) {
+                    $fieldQueryToExecute[] = 'self';
+                }
+                $fieldQueryToExecute = array_merge(
+                    $fieldQueryToExecute,
                     $fieldQueryLevel
                 );
+                $fieldQueries[] = implode(
+                    QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL,
+                    $fieldQueryToExecute
+                );
             }
+            // Get the maximum number of connections in this operation
+            $operationNumberOfLevels = array_map('count', $fieldQueryLevels);
+            $operationMaxLevels = max($operationNumberOfLevels);
+            // Add it to the depth for the next operation
+            $operationDepth += $operationMaxLevels;
         }
         return implode(
             QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
