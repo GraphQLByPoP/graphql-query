@@ -46,48 +46,46 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
     public function convertFromGraphQLToFieldQuery(string $graphQLQuery, ?array $variables = []): string
     {
         $operationFieldQueries = $this->convertFromGraphQLToFieldQueries($graphQLQuery, $variables);
-        // var_dump($operationFieldQueries);
-        // if (true) {
-        //     $numberOfConnections = array_map(
-        //         function ($fieldWithPathFromRoot) {
-        //             return substr_count($fieldWithPathFromRoot, QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL);
-        //         },
-        //         $fieldQueries
-        //     );
-        //     var_dump($fieldQueries, $numberOfConnections);
-        // }
+        $executeQueriesInStrictOrder = ComponentConfiguration::executeQueryBatchInStrictOrder();
         $fieldQueries = [];
         $operationDepth = 0;
         foreach ($operationFieldQueries as $operationID => $fieldQueryLevels) {
             foreach ($fieldQueryLevels as $fieldQueryLevel) {
                 /**
-                 * Make multi-query batches be executed in order:
+                 * To make query batching be executed in strict order:
                  * Prepend the 'self' field to the field to be queried,
                  * as many times as the dept from all previous operations
                  * so the field stands on the tree at the same level
                  * as the last field from the previous operation in the
                  * execution pipeline.
                  */
-                $fieldQueryToExecute = [];
-                for ($i = 0; $i <$operationDepth; $i++) {
-                    $fieldQueryToExecute[] = 'self';
+                if ($executeQueriesInStrictOrder) {
+                    $fieldQueryToExecute = [];
+                    for ($i = 0; $i <$operationDepth; $i++) {
+                        $fieldQueryToExecute[] = 'self';
+                    }
+                    $fieldQueryToExecute = array_merge(
+                        $fieldQueryToExecute,
+                        $fieldQueryLevel
+                    );
+                } else {
+                    $fieldQueryToExecute = $fieldQueryLevel;
                 }
-                $fieldQueryToExecute = array_merge(
-                    $fieldQueryToExecute,
-                    $fieldQueryLevel
-                );
                 $fieldQueries[] = implode(
                     QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL,
                     $fieldQueryToExecute
                 );
             }
-            // Get the maximum number of connections in this operation
-            $operationNumberOfLevels = array_map('count', $fieldQueryLevels);
-            $operationMaxLevels = max($operationNumberOfLevels);
-            // Add it to the depth for the next operation minus one:
-            // that will add it at the same level as the last field
-            // from the previous operation
-            $operationDepth += $operationMaxLevels - 1;
+            // Count the depth of each query when doing batching
+            if ($executeQueriesInStrictOrder) {
+                // Get the maximum number of connections in this operation
+                $operationNumberOfLevels = array_map('count', $fieldQueryLevels);
+                $operationMaxLevels = max($operationNumberOfLevels);
+                // Add it to the depth for the next operation minus one:
+                // that will add it at the same level as the last field
+                // from the previous operation
+                $operationDepth += $operationMaxLevels - 1;
+            }
         }
         return implode(
             QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
