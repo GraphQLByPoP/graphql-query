@@ -244,7 +244,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
      *
      * @return array
      */
-    protected function restrainFieldsByTypeOrInterface(array $fragmentFields, string $fragmentModel): array
+    protected function restrainFieldsByTypeOrInterface(array $fragmentFieldPaths, string $fragmentModel): array
     {
         $fieldQueryInterpreter = FieldQueryInterpreterFacade::getInstance();
         // Create the <include> directive, if the fragment references the type or interface
@@ -272,17 +272,11 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 ),
             ])
         );
-        $fragmentFields = array_map(
-            function (array $fragmentField) use ($includeDirective, $fieldQueryInterpreter): array {
-                // // The field can itself compose other fields. In that case,
-                // // apply the directive to the root property only
-                // $dotPos = QueryUtils::findFirstSymbolPosition($fragmentField, QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL, [QuerySyntax::SYMBOL_FIELDARGS_OPENING, QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING], [QuerySyntax::SYMBOL_FIELDARGS_CLOSING, QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING], QuerySyntax::SYMBOL_FIELDARGS_ARGVALUESTRING_OPENING, QuerySyntax::SYMBOL_FIELDARGS_ARGVALUESTRING_CLOSING);
-                // if ($dotPos !== false) {
-                //     $fragmentRootField = substr($fragmentField, 0, $dotPos);
-                // } else {
-                //     $fragmentRootField = $fragmentField;
-                // }
-                $fragmentRootField = $fragmentField[0];
+        $fragmentFieldPaths = array_map(
+            function (array $fragmentFieldPath) use ($includeDirective, $fieldQueryInterpreter): array {
+                // The field can itself compose other fields. Get the 1st element
+                // to apply the directive to the root property only
+                $fragmentRootField = $fragmentFieldPath[0];
 
                 // Add the directive to the current directives from the field
                 $rootFieldDirectives = $fieldQueryInterpreter->getFieldDirectives((string)$fragmentRootField);
@@ -302,39 +296,26 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                     $rootFieldDirectives = $includeDirective;
                 }
 
-                $fragmentField[0] =
+                // Replace the first element, adding the directive
+                $fragmentFieldPath[0] =
                     $fragmentRootField .
                     QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING .
                     $rootFieldDirectives .
                     QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING;
-                return $fragmentField;
-
-                // return
-                //     $fragmentRootField .
-                //     QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING .
-                //     $rootFieldDirectives .
-                //     QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING .
-                //     (($dotPos !== false) ? substr($fragmentField, $dotPos) : '');
+                return $fragmentFieldPath;
             },
-            $fragmentFields
+            $fragmentFieldPaths
         );
-        return $fragmentFields;
+        return $fragmentFieldPaths;
     }
 
     protected function processAndAddFields(Request $request, array &$queryFields, array $fields, array $queryField = []): void
     {
         // Iterate through the query's fields: properties, connections, fragments
-        // $queryFieldPath =
-        //     $queryField ?
-        //         $queryField . QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL :
-        //         '';
         $queryFieldPath = $queryField;
         foreach ($fields as $field) {
             if ($field instanceof Field) {
                 // Fields are leaves in the graph
-                // $queryFields[] =
-                //     $queryFieldPath .
-                //     $this->convertField($field);
                 $queryFields[] = array_merge(
                     $queryFieldPath,
                     [$this->convertField($field)]
@@ -343,12 +324,9 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 // Queries are connections
                 $nestedFields = $this->getFieldsFromQuery($request, $field);
                 foreach ($nestedFields as $nestedField) {
-                    // $queryFields[] =
-                    //     $queryFieldPath .
-                    //     $nestedField;
                     $queryFields[] = array_merge(
                         $queryFieldPath,
-                        $nestedField//[$nestedField]
+                        $nestedField
                     );
                 }
             } elseif ($field instanceof FragmentReference || $field instanceof TypedFragmentReference) {
@@ -365,21 +343,17 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 }
 
                 // Get the fields defined in the fragment
-                $fragmentConvertedFields = [];
-                $this->processAndAddFields($request, $fragmentConvertedFields, $fragmentFields);
+                $fragmentConvertedFieldPaths = [];
+                $this->processAndAddFields($request, $fragmentConvertedFieldPaths, $fragmentFields);
 
                 // Restrain those fields to the indicated type
-                $fragmentConvertedFields = $this->restrainFieldsByTypeOrInterface($fragmentConvertedFields, $fragmentType);
+                $fragmentConvertedFieldPaths = $this->restrainFieldsByTypeOrInterface($fragmentConvertedFieldPaths, $fragmentType);
 
                 // Add them to the list of fields in the query
-                foreach ($fragmentConvertedFields as $fragmentField) {
-                    // $queryFields[] =
-                    //     $queryFieldPath .
-                    //     $fragmentField;
-                    // var_dump('$fragmentField', $fragmentField);
+                foreach ($fragmentConvertedFieldPaths as $fragmentFieldPath) {
                     $queryFields[] = array_merge(
                         $queryFieldPath,
-                        $fragmentField
+                        $fragmentFieldPath
                     );
                 }
             }
