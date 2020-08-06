@@ -53,13 +53,13 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         string $graphQLQuery,
         ?array $variables = []
     ): array {
-        $operationFieldQueries = $this->convertFromGraphQLToFieldQueries($graphQLQuery, $variables);
+        $operationFieldQueryPaths = $this->convertFromGraphQLToFieldQueryPaths($graphQLQuery, $variables);
         $executeQueryBatchInStrictOrder = ComponentConfiguration::executeQueryBatchInStrictOrder();
         $requestedFieldQueries = [];
         $executableFieldQueries = [];
         $previousOperationSelves = [];
-        foreach ($operationFieldQueries as $operationID => $fieldQueryLevels) {
-            foreach ($fieldQueryLevels as $fieldQueryLevel) {
+        foreach ($operationFieldQueryPaths as $operationID => $fieldQueryPaths) {
+            foreach ($fieldQueryPaths as $fieldQueryLevel) {
                 $requestedFieldQueries[] = implode(
                     QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL,
                     $fieldQueryLevel
@@ -83,7 +83,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             if ($executeQueryBatchInStrictOrder) {
                 // Count the depth of each query when doing batching
                 // Get the maximum number of connections in this operation
-                $operationNumberOfLevels = array_map('count', $fieldQueryLevels);
+                $operationNumberOfLevels = array_map('count', $fieldQueryPaths);
                 $operationMaxLevels = max($operationNumberOfLevels);
                 // Add it to the depth for the next operation minus one:
                 // that will add it at the same level as the last field
@@ -139,14 +139,13 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
      * Convert the GraphQL Query to an array containing all the
      * parts from the query
      */
-    protected function convertFromGraphQLToFieldQueries(string $graphQLQuery, ?array $variables = []): array
+    protected function convertFromGraphQLToFieldQueryPaths(string $graphQLQuery, ?array $variables = []): array
     {
         try {
             // If the validation throws an error, stop parsing the script
             $request = $this->parseAndCreateRequest($graphQLQuery, $variables);
             // Converting the query could also throw an Exception
-            $fieldQueries = $this->convertRequestToFieldQueries($request);
-            // var_dump('$fieldQueries', $fieldQueries);
+            $fieldQueryPaths = $this->convertRequestToFieldQueryPaths($request);
         } catch (Exception $e) {
             // Save the error
             $errorMessage = $e->getMessage();
@@ -158,7 +157,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             // Returning nothing will not process the query
             return [];
         }
-        return $fieldQueries;
+        return $fieldQueryPaths;
     }
 
     /**
@@ -309,24 +308,24 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         return $fragmentFieldPaths;
     }
 
-    protected function processAndAddFields(Request $request, array &$queryFields, array $fields, array $queryField = []): void
+    protected function processAndAddFieldPaths(Request $request, array &$queryFieldPaths, array $fields, array $queryField = []): void
     {
         // Iterate through the query's fields: properties, connections, fragments
         $queryFieldPath = $queryField;
         foreach ($fields as $field) {
             if ($field instanceof Field) {
                 // Fields are leaves in the graph
-                $queryFields[] = array_merge(
+                $queryFieldPaths[] = array_merge(
                     $queryFieldPath,
                     [$this->convertField($field)]
                 );
             } elseif ($field instanceof Query) {
                 // Queries are connections
-                $nestedFields = $this->getFieldsFromQuery($request, $field);
-                foreach ($nestedFields as $nestedField) {
-                    $queryFields[] = array_merge(
+                $nestedFieldPaths = $this->getFieldPathsFromQuery($request, $field);
+                foreach ($nestedFieldPaths as $nestedFieldPath) {
+                    $queryFieldPaths[] = array_merge(
                         $queryFieldPath,
-                        $nestedField
+                        $nestedFieldPath
                     );
                 }
             } elseif ($field instanceof FragmentReference || $field instanceof TypedFragmentReference) {
@@ -344,14 +343,14 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
 
                 // Get the fields defined in the fragment
                 $fragmentConvertedFieldPaths = [];
-                $this->processAndAddFields($request, $fragmentConvertedFieldPaths, $fragmentFields);
+                $this->processAndAddFieldPaths($request, $fragmentConvertedFieldPaths, $fragmentFields);
 
                 // Restrain those fields to the indicated type
                 $fragmentConvertedFieldPaths = $this->restrainFieldsByTypeOrInterface($fragmentConvertedFieldPaths, $fragmentType);
 
                 // Add them to the list of fields in the query
                 foreach ($fragmentConvertedFieldPaths as $fragmentFieldPath) {
-                    $queryFields[] = array_merge(
+                    $queryFieldPaths[] = array_merge(
                         $queryFieldPath,
                         $fragmentFieldPath
                     );
@@ -360,20 +359,20 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         }
     }
 
-    protected function getFieldsFromQuery(Request $request, Query $query): array
+    protected function getFieldPathsFromQuery(Request $request, Query $query): array
     {
-        $queryFields = [];
-        $queryField = $this->convertField($query);
+        $queryFieldPaths = [];
+        $queryFieldPath = [$this->convertField($query)];
 
         // Iterate through the query's fields: properties and connections
         if ($fields = $query->getFields()) {
-            $this->processAndAddFields($request, $queryFields, $fields, [$queryField]);
+            $this->processAndAddFieldPaths($request, $queryFieldPaths, $fields, $queryFieldPath);
         } else {
             // Otherwise, just add the query field, which doesn't have subfields
-            $queryFields[] = [$queryField];
+            $queryFieldPaths[] = $queryFieldPath;
         }
 
-        return $queryFields;
+        return $queryFieldPaths;
     }
 
     /**
@@ -382,9 +381,9 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
      *
      * @see https://graphql.org/learn/queries/
      */
-    protected function convertRequestToFieldQueries(Request $request): array
+    protected function convertRequestToFieldQueryPaths(Request $request): array
     {
-        $fieldQueries = [];
+        $fieldQueryPaths = [];
         foreach ($request->getQueries() as $query) {
             $operationLocation = $query->getLocation();
             $operationID = sprintf(
@@ -392,12 +391,12 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 $operationLocation->getLine(),
                 $operationLocation->getColumn()
             );
-            $fieldQueries[$operationID] = array_merge(
-                $fieldQueries[$operationID] ?? [],
-                $this->getFieldsFromQuery($request, $query)
+            $fieldQueryPaths[$operationID] = array_merge(
+                $fieldQueryPaths[$operationID] ?? [],
+                $this->getFieldPathsFromQuery($request, $query)
             );
         }
-        return $fieldQueries;
+        return $fieldQueryPaths;
     }
 
     /**
