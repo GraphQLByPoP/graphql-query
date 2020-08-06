@@ -52,7 +52,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
     public function convertFromGraphQLToFieldQuerySet(
         string $graphQLQuery,
         ?array $variables = []
-    ): array {
+    ): FieldQuerySet {
         $operationFieldQueryPaths = $this->convertFromGraphQLToFieldQueryPaths($graphQLQuery, $variables);
         $executeQueryBatchInStrictOrder = ComponentConfiguration::executeQueryBatchInStrictOrder();
         $requestedFieldQueries = [];
@@ -93,16 +93,16 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 }
             }
         }
-        return [
-            implode(
-                QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
-                $requestedFieldQueries
-            ),
-            implode(
-                QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
-                $executableFieldQueries
-            )
-        ];
+        // Join all independent fields with a ","
+        $requestedFieldQuery = implode(
+            QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
+            $requestedFieldQueries
+        );
+        $executableFieldQuery = implode(
+            QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
+            $executableFieldQueries
+        );
+        return new FieldQuerySet($requestedFieldQuery, $executableFieldQuery);
     }
 
     /**
@@ -112,10 +112,8 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         string $graphQLQuery,
         ?array $variables = []
     ): string {
-        list(
-            $requestedFieldQuery,
-        ) = $this->convertFromGraphQLToFieldQuerySet($graphQLQuery, $variables);
-        return $requestedFieldQuery;
+        $fieldQuerySet = $this->convertFromGraphQLToFieldQuerySet($graphQLQuery, $variables);
+        return $fieldQuerySet->getRequestedFieldQuery();
     }
 
     /**
@@ -128,11 +126,8 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         string $graphQLQuery,
         ?array $variables = []
     ): string {
-        list(
-            $requestedFieldQuery,
-            $executableFieldQuery
-        ) = $this->convertFromGraphQLToFieldQuerySet($graphQLQuery, $variables);
-        return $executableFieldQuery;
+        $fieldQuerySet = $this->convertFromGraphQLToFieldQuerySet($graphQLQuery, $variables);
+        return $fieldQuerySet->getExecutableFieldQuery();
     }
 
     /**

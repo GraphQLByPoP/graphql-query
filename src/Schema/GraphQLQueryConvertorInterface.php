@@ -16,7 +16,7 @@ interface GraphQLQueryConvertorInterface
     public function convertFromGraphQLToFieldQuerySet(
         string $graphQLQuery,
         ?array $variables = []
-    ): array;
+    ): FieldQuerySet;
 
     /**
      * Convert the GraphQL Query to PoP query in its requested form
