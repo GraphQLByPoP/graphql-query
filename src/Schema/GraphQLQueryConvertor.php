@@ -6,7 +6,6 @@ namespace PoP\GraphQLAPIQuery\Schema;
 
 use Exception;
 use InvalidArgumentException;
-use PoP\FieldQuery\QueryUtils;
 use PoP\FieldQuery\QuerySyntax;
 use PoP\FieldQuery\QueryHelpers;
 use Youshido\GraphQL\Parser\Parser;
@@ -43,14 +42,28 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         $this->feedbackMessageStore = $feedbackMessageStore;
     }
 
-    public function convertFromGraphQLToFieldQuery(string $graphQLQuery, ?array $variables = []): string
-    {
+    /**
+     * Convert the GraphQL Query to PoP query.
+     * Return a set with both the requested and the executable field query.
+     *
+     * For instance, when doing query batching, fields may be prepended
+     * with "self" to have the queries be executed in stric order
+     */
+    public function convertFromGraphQLToFieldQuerySet(
+        string $graphQLQuery,
+        ?array $variables = []
+    ): array {
         $operationFieldQueries = $this->convertFromGraphQLToFieldQueries($graphQLQuery, $variables);
-        $executeQueriesInStrictOrder = ComponentConfiguration::executeQueryBatchInStrictOrder();
-        $fieldQueries = [];
-        $operationDepth = 0;
+        $executeQueryBatchInStrictOrder = ComponentConfiguration::executeQueryBatchInStrictOrder();
+        $requestedFieldQueries = [];
+        $executableFieldQueries = [];
+        $previousOperationSelves = [];
         foreach ($operationFieldQueries as $operationID => $fieldQueryLevels) {
             foreach ($fieldQueryLevels as $fieldQueryLevel) {
+                $requestedFieldQueries[] = implode(
+                    QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL,
+                    $fieldQueryLevel
+                );
                 /**
                  * To make query batching be executed in strict order:
                  * Prepend the 'self' field to the field to be queried,
@@ -59,41 +72,74 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                  * as the last field from the previous operation in the
                  * execution pipeline.
                  */
-                if ($executeQueriesInStrictOrder) {
-                    $fieldQueryToExecute = [];
-                    for ($i = 0; $i <$operationDepth; $i++) {
-                        $fieldQueryToExecute[] = 'self';
-                    }
-                    $fieldQueryToExecute = array_merge(
-                        $fieldQueryToExecute,
-                        $fieldQueryLevel
-                    );
-                } else {
-                    $fieldQueryToExecute = $fieldQueryLevel;
-                }
-                $fieldQueries[] = implode(
+                $executableFieldQueries[] = implode(
                     QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL,
-                    $fieldQueryToExecute
+                    array_merge(
+                        $previousOperationSelves,
+                        $fieldQueryLevel
+                    )
                 );
             }
-            // Count the depth of each query when doing batching
-            if ($executeQueriesInStrictOrder) {
+            if ($executeQueryBatchInStrictOrder) {
+                // Count the depth of each query when doing batching
                 // Get the maximum number of connections in this operation
                 $operationNumberOfLevels = array_map('count', $fieldQueryLevels);
                 $operationMaxLevels = max($operationNumberOfLevels);
                 // Add it to the depth for the next operation minus one:
                 // that will add it at the same level as the last field
                 // from the previous operation
-                $operationDepth += $operationMaxLevels - 1;
+                for ($i = 0; $i <$operationMaxLevels - 1; $i++) {
+                    $previousOperationSelves[] = 'self';
+                }
             }
         }
-        return implode(
-            QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
-            $fieldQueries
-        );
+        return [
+            implode(
+                QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
+                $requestedFieldQueries
+            ),
+            implode(
+                QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
+                $executableFieldQueries
+            )
+        ];
     }
 
-    public function convertFromGraphQLToFieldQueries(string $graphQLQuery, ?array $variables = []): array
+    /**
+     * Convert the GraphQL Query to PoP query in its requested form
+     */
+    public function convertFromGraphQLToRequestedFieldQuery(
+        string $graphQLQuery,
+        ?array $variables = []
+    ): string {
+        list(
+            $requestedFieldQuery,
+        ) = $this->convertFromGraphQLToFieldQuerySet($graphQLQuery, $variables);
+        return $requestedFieldQuery;
+    }
+
+    /**
+     * Convert the GraphQL Query to PoP query in its executable form.
+     *
+     * For instance, when doing query batching, fields may be prepended
+     * with "self" to have the queries be executed in stric order
+     */
+    public function convertFromGraphQLToExecutableFieldQuery(
+        string $graphQLQuery,
+        ?array $variables = []
+    ): string {
+        list(
+            $requestedFieldQuery,
+            $executableFieldQuery
+        ) = $this->convertFromGraphQLToFieldQuerySet($graphQLQuery, $variables);
+        return $executableFieldQuery;
+    }
+
+    /**
+     * Convert the GraphQL Query to an array containing all the
+     * parts from the query
+     */
+    protected function convertFromGraphQLToFieldQueries(string $graphQLQuery, ?array $variables = []): array
     {
         try {
             // If the validation throws an error, stop parsing the script
