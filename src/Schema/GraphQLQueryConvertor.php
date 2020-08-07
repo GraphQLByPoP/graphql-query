@@ -363,25 +363,53 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         // GraphiQL sends the operationName to execute in the payload, under "operationName"
         // This is required when the payload contains multiple queries
         if (!is_null($operationName)) {
-            // Find the position and number of queries processed by this operation
-            foreach ($parsedData['queryOperations'] as $queryOperation) {
-                if ($queryOperation['name'] == $operationName) {
-                    $parsedData['queries'] = array_slice(
-                        $parsedData['queries'],
-                        $queryOperation['position'],
-                        $queryOperation['numberItems']
-                    );
-                    break;
+            // Hack! Because GraphiQL does not allow to execute more than 1 operation,
+            // we have the following query indicate execute all:
+            // ```query ALL { id }```
+            // In that case, execute all queries but the one with name ALL
+            if ($operationName == ClientSymbols::GRAPHIQL_QUERY_BATCHING_OPERATION_NAME) {
+                // Find the position and number of queries processed by this operation
+                foreach ($parsedData['queryOperations'] as $queryOperation) {
+                    if ($queryOperation['name'] == $operationName) {
+                        array_splice(
+                            $parsedData['queries'],
+                            $queryOperation['position'],
+                            $queryOperation['numberItems']
+                        );
+                        break;
+                    }
                 }
-            }
-            foreach ($parsedData['mutationOperations'] as $mutationOperation) {
-                if ($mutationOperation['name'] == $operationName) {
-                    $parsedData['mutations'] = array_slice(
-                        $parsedData['mutations'],
-                        $mutationOperation['position'],
-                        $mutationOperation['numberItems']
-                    );
-                    break;
+                foreach ($parsedData['mutationOperations'] as $mutationOperation) {
+                    if ($mutationOperation['name'] == $operationName) {
+                        array_splice(
+                            $parsedData['mutations'],
+                            $mutationOperation['position'],
+                            $mutationOperation['numberItems']
+                        );
+                        break;
+                    }
+                }
+            } else {
+                // Find the position and number of queries processed by this operation
+                foreach ($parsedData['queryOperations'] as $queryOperation) {
+                    if ($queryOperation['name'] == $operationName) {
+                        $parsedData['queries'] = array_slice(
+                            $parsedData['queries'],
+                            $queryOperation['position'],
+                            $queryOperation['numberItems']
+                        );
+                        break;
+                    }
+                }
+                foreach ($parsedData['mutationOperations'] as $mutationOperation) {
+                    if ($mutationOperation['name'] == $operationName) {
+                        $parsedData['mutations'] = array_slice(
+                            $parsedData['mutations'],
+                            $mutationOperation['position'],
+                            $mutationOperation['numberItems']
+                        );
+                        break;
+                    }
                 }
             }
         }
