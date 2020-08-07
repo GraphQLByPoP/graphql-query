@@ -363,10 +363,14 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         // GraphiQL sends the operationName to execute in the payload, under "operationName"
         // This is required when the payload contains multiple queries
         if (!is_null($operationName)) {
-            // Hack! Because GraphiQL does not allow to execute more than 1 operation,
-            // we have the following query indicate execute all:
-            // ```query ALL { id }```
-            // In that case, execute all queries but the one with name ALL
+            /**
+             * Hack! Because GraphiQL does not allow to execute more than 1 operation,
+             * (so it doesn't support query batching), then this artificial query
+             * indicates to execute all (i.e. execute all operations but this one):
+             * ```
+             *   query __ALL { id }
+             * ```
+             */
             if (strtoupper($operationName) == ClientSymbols::GRAPHIQL_QUERY_BATCHING_OPERATION_NAME) {
                 // Find the position and number of queries processed by this operation
                 foreach ($parsedData['queryOperations'] as $queryOperation) {
