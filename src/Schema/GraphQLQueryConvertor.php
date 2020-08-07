@@ -47,9 +47,10 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
      */
     public function convertFromGraphQLToFieldQuery(
         string $graphQLQuery,
-        ?array $variables = []
+        ?array $variables = [],
+        ?string $operationName = null
     ): string {
-        $operationFieldQueryPaths = $this->convertFromGraphQLToFieldQueryPaths($graphQLQuery, $variables);
+        $operationFieldQueryPaths = $this->convertFromGraphQLToFieldQueryPaths($graphQLQuery, $variables, $operationName);
         $fieldQueries = [];
         foreach ($operationFieldQueryPaths as $operationID => $fieldQueryPaths) {
             $operationFieldQueries = [];
@@ -77,11 +78,14 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
      * Convert the GraphQL Query to an array containing all the
      * parts from the query
      */
-    protected function convertFromGraphQLToFieldQueryPaths(string $graphQLQuery, ?array $variables = []): array
-    {
+    protected function convertFromGraphQLToFieldQueryPaths(
+        string $graphQLQuery,
+        ?array $variables = [],
+        ?string $operationName = null
+    ): array {
         try {
             // If the validation throws an error, stop parsing the script
-            $request = $this->parseAndCreateRequest($graphQLQuery, $variables);
+            $request = $this->parseAndCreateRequest($graphQLQuery, $variables, $operationName);
             // Converting the query could also throw an Exception
             $fieldQueryPaths = $this->convertRequestToFieldQueryPaths($request);
         } catch (Exception $e) {
@@ -344,14 +348,44 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
      * @param array $variables
      * @return void
      */
-    protected function parseAndCreateRequest($payload, $variables = []): Request
-    {
+    protected function parseAndCreateRequest(
+        $payload,
+        $variables = [],
+        ?string $operationName = null
+    ): Request {
         if (empty($payload)) {
             throw new InvalidArgumentException($this->translationAPI->__('Must provide an operation.'));
         }
 
         $parser  = new Parser();
         $parsedData = $parser->parse($payload);
+
+        // GraphiQL sends the operationName to execute in the payload, under "operationName"
+        // This is required when the payload contains multiple queries
+        if (!is_null($operationName)) {
+            // Find the position and number of queries processed by this operation
+            foreach ($parsedData['queryOperations'] as $queryOperation) {
+                if ($queryOperation['name'] == $operationName) {
+                    $parsedData['queries'] = array_slice(
+                        $parsedData['queries'],
+                        $queryOperation['position'],
+                        $queryOperation['numberItems']
+                    );
+                    break;
+                }
+            }
+            foreach ($parsedData['mutationOperations'] as $mutationOperation) {
+                if ($mutationOperation['name'] == $operationName) {
+                    $parsedData['mutations'] = array_slice(
+                        $parsedData['mutations'],
+                        $mutationOperation['position'],
+                        $mutationOperation['numberItems']
+                    );
+                    break;
+                }
+            }
+        }
+
         $request = new Request($parsedData, $variables);
 
         // If the validation fails, it will throw an exception

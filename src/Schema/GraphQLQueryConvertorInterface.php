@@ -11,7 +11,8 @@ interface GraphQLQueryConvertorInterface
      */
     public function convertFromGraphQLToFieldQuery(
         string $graphQLQuery,
-        ?array $variables = []
+        ?array $variables = [],
+        ?string $operationName = null
     ): string;
 
     /**
