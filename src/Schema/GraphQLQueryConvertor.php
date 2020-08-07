@@ -367,7 +367,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             // we have the following query indicate execute all:
             // ```query ALL { id }```
             // In that case, execute all queries but the one with name ALL
-            if ($operationName == ClientSymbols::GRAPHIQL_QUERY_BATCHING_OPERATION_NAME) {
+            if (strtoupper($operationName) == ClientSymbols::GRAPHIQL_QUERY_BATCHING_OPERATION_NAME) {
                 // Find the position and number of queries processed by this operation
                 foreach ($parsedData['queryOperations'] as $queryOperation) {
                     if ($queryOperation['name'] == $operationName) {
