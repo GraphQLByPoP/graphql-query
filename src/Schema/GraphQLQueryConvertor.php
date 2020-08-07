@@ -43,91 +43,34 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
     }
 
     /**
-     * Convert the GraphQL Query to PoP query.
-     * Return a set with both the requested and the executable field query.
-     *
-     * For instance, when doing query batching, fields may be prepended
-     * with "self" to have the queries be executed in stric order
+     * Convert the GraphQL Query to PoP query in its requested form
      */
-    public function convertFromGraphQLToFieldQuerySet(
+    public function convertFromGraphQLToFieldQuery(
         string $graphQLQuery,
         ?array $variables = []
-    ): FieldQuerySet {
+    ): string {
         $operationFieldQueryPaths = $this->convertFromGraphQLToFieldQueryPaths($graphQLQuery, $variables);
-        $executeQueryBatchInStrictOrder = ComponentConfiguration::executeQueryBatchInStrictOrder();
-        $requestedFieldQueries = [];
-        $executableFieldQueries = [];
-        $previousOperationSelves = [];
+        $fieldQueries = [];
         foreach ($operationFieldQueryPaths as $operationID => $fieldQueryPaths) {
+            $operationFieldQueries = [];
             foreach ($fieldQueryPaths as $fieldQueryLevel) {
-                $requestedFieldQueries[] = implode(
+                // Join all connections with "."
+                $operationFieldQueries[] = implode(
                     QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL,
                     $fieldQueryLevel
                 );
-                /**
-                 * To make query batching be executed in strict order:
-                 * Prepend the 'self' field to the field to be queried,
-                 * as many times as the dept from all previous operations
-                 * so the field stands on the tree at the same level
-                 * as the last field from the previous operation in the
-                 * execution pipeline.
-                 */
-                $executableFieldQueries[] = implode(
-                    QuerySyntax::SYMBOL_RELATIONALFIELDS_NEXTLEVEL,
-                    array_merge(
-                        $previousOperationSelves,
-                        $fieldQueryLevel
-                    )
-                );
             }
-            if ($executeQueryBatchInStrictOrder) {
-                // Count the depth of each query when doing batching
-                // Get the maximum number of connections in this operation
-                $operationNumberOfLevels = array_map('count', $fieldQueryPaths);
-                $operationMaxLevels = max($operationNumberOfLevels);
-                // Add it to the depth for the next operation minus one:
-                // that will add it at the same level as the last field
-                // from the previous operation
-                for ($i = 0; $i <$operationMaxLevels - 1; $i++) {
-                    $previousOperationSelves[] = 'self';
-                }
-            }
+            // Join all fields at the same level with ","
+            $fieldQueries[] = implode(
+                QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
+                $operationFieldQueries
+            );
         }
-        // Join all independent fields with a ","
-        $requestedFieldQuery = implode(
-            QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
-            $requestedFieldQueries
+        // Join all operators with a ";"
+        return implode(
+            QuerySyntax::SYMBOL_OPERATIONS_SEPARATOR,
+            $fieldQueries
         );
-        $executableFieldQuery = implode(
-            QuerySyntax::SYMBOL_QUERYFIELDS_SEPARATOR,
-            $executableFieldQueries
-        );
-        return new FieldQuerySet($requestedFieldQuery, $executableFieldQuery);
-    }
-
-    /**
-     * Convert the GraphQL Query to PoP query in its requested form
-     */
-    public function convertFromGraphQLToRequestedFieldQuery(
-        string $graphQLQuery,
-        ?array $variables = []
-    ): string {
-        $fieldQuerySet = $this->convertFromGraphQLToFieldQuerySet($graphQLQuery, $variables);
-        return $fieldQuerySet->getRequestedFieldQuery();
-    }
-
-    /**
-     * Convert the GraphQL Query to PoP query in its executable form.
-     *
-     * For instance, when doing query batching, fields may be prepended
-     * with "self" to have the queries be executed in stric order
-     */
-    public function convertFromGraphQLToExecutableFieldQuery(
-        string $graphQLQuery,
-        ?array $variables = []
-    ): string {
-        $fieldQuerySet = $this->convertFromGraphQLToFieldQuerySet($graphQLQuery, $variables);
-        return $fieldQuerySet->getExecutableFieldQuery();
     }
 
     /**
