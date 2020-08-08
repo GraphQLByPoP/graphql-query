@@ -1,12 +1,12 @@
 {
-    "name": "getpop/api-graphql-query",
+    "name": "getpop/graphql-query",
     "type": "library",
     "description": "Utilities to transform the query from the GraphQL syntax to the Field query syntax",
     "keywords": [
         "PoP",
-        "api-graphql-query"
+        "graphql-query"
     ],
-    "homepage": "https://github.com/GraphQLByPoP/api-graphql-query",
+    "homepage": "https://github.com/GraphQLByPoP/graphql-query",
     "license": "MIT",
     "authors": [
         {
