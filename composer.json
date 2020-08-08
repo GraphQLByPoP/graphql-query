@@ -31,12 +31,12 @@
     },
     "autoload": {
         "psr-4": {
-            "PoP\\GraphQLAPIQuery\\": "src"
+            "GraphQLByPoP\\GraphQLAPIQuery\\": "src"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "PoP\\GraphQLAPIQuery\\": "tests"
+            "GraphQLByPoP\\GraphQLAPIQuery\\": "tests"
         }
     },
     "scripts": {

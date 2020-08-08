@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PoP\GraphQLAPIQuery;
+namespace GraphQLByPoP\GraphQLAPIQuery;
 
 class Environment
 {
