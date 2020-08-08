@@ -1,5 +1,5 @@
 {
-    "name": "getpop/graphql-query",
+    "name": "graphql-by-pop/graphql-query",
     "type": "library",
     "description": "Utilities to transform the query from the GraphQL syntax to the Field query syntax",
     "keywords": [
@@ -22,7 +22,7 @@
         "getpop/field-query": "~0.1",
         "getpop/engine": "dev-master",
         "getpop/api-graphql": "dev-master",
-        "getpop/graphql-parser": "dev-master"
+        "graphql-by-pop/graphql-parser": "dev-master"
     },
     "require-dev": {
         "phpstan/phpstan": "^0.12",
