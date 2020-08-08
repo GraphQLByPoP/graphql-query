@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace GraphQLByPoP\GraphQLAPIQuery\Schema;
+namespace GraphQLByPoP\GraphQLQuery\Schema;
 
 use Exception;
 use InvalidArgumentException;
@@ -21,8 +21,8 @@ use PoP\ComponentModel\Schema\FeedbackMessageStoreInterface;
 use Youshido\GraphQL\Validator\RequestValidator\RequestValidator;
 use Youshido\GraphQL\Exception\Interfaces\LocationableExceptionInterface;
 use PoP\ComponentModel\Facades\Schema\FieldQueryInterpreterFacade;
-use GraphQLByPoP\GraphQLAPIQuery\ComponentConfiguration;
-use GraphQLByPoP\GraphQLAPIQuery\Schema\QuerySymbols;
+use GraphQLByPoP\GraphQLQuery\ComponentConfiguration;
+use GraphQLByPoP\GraphQLQuery\Schema\QuerySymbols;
 use Youshido\GraphQL\Parser\Ast\ArgumentValue\VariableReference;
 use Youshido\GraphQL\Parser\Ast\ArgumentValue\Variable;
 use Youshido\GraphQL\Parser\Ast\ArgumentValue\InputList;

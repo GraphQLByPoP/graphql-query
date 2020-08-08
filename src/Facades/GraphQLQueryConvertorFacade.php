@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace GraphQLByPoP\GraphQLAPIQuery\Facades;
+namespace GraphQLByPoP\GraphQLQuery\Facades;
 
-use GraphQLByPoP\GraphQLAPIQuery\Schema\GraphQLQueryConvertorInterface;
+use GraphQLByPoP\GraphQLQuery\Schema\GraphQLQueryConvertorInterface;
 use PoP\Root\Container\ContainerBuilderFactory;
 
 class GraphQLQueryConvertorFacade

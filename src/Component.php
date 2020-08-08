@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace GraphQLByPoP\GraphQLAPIQuery;
+namespace GraphQLByPoP\GraphQLQuery;
 
 use PoP\GraphQLAPI\Component as GraphQLAPIComponent;
 use PoP\Root\Component\AbstractComponent;

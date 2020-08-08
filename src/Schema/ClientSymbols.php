@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace GraphQLByPoP\GraphQLAPIQuery\Schema;
+namespace GraphQLByPoP\GraphQLQuery\Schema;
 
 class ClientSymbols
 {

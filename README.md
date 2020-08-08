@@ -26,7 +26,7 @@ Initialize the component:
 
 ``` php
 \PoP\Root\ComponentLoader::initializeComponents([
-    \GraphQLByPoP\GraphQLAPIQuery\Component::class,
+    \GraphQLByPoP\GraphQLQuery\Component::class,
 ]);
 ```
 

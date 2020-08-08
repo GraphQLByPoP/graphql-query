@@ -5,5 +5,5 @@ services:
             PoP\ComponentModel\Schema\FeedbackMessageStoreInterface: '@feedback_message_store'
 
     graphql_query_convertor:
-        class: \GraphQLByPoP\GraphQLAPIQuery\Schema\GraphQLQueryConvertor
+        class: \GraphQLByPoP\GraphQLQuery\Schema\GraphQLQueryConvertor
         public: true
