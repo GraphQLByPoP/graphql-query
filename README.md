@@ -1,4 +1,4 @@
-# GraphQL API Query
+# GraphQL Query
 
 [![Build Status][ico-travis]][link-travis]
 [![Quality Score][ico-code-quality]][link-code-quality]

@@ -48,9 +48,15 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
     public function convertFromGraphQLToFieldQuery(
         string $graphQLQuery,
         ?array $variables = [],
+        bool $enableMultipleQueryExecution = false,
         ?string $operationName = null
     ): string {
-        $operationFieldQueryPaths = $this->convertFromGraphQLToFieldQueryPaths($graphQLQuery, $variables, $operationName);
+        $operationFieldQueryPaths = $this->convertFromGraphQLToFieldQueryPaths(
+            $graphQLQuery,
+            $variables ?? [],
+            $enableMultipleQueryExecution,
+            $operationName
+        );
         $fieldQueries = [];
         foreach ($operationFieldQueryPaths as $operationID => $fieldQueryPaths) {
             $operationFieldQueries = [];
@@ -80,12 +86,18 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
      */
     protected function convertFromGraphQLToFieldQueryPaths(
         string $graphQLQuery,
-        ?array $variables = [],
+        array $variables,
+        bool $enableMultipleQueryExecution,
         ?string $operationName = null
     ): array {
         try {
             // If the validation throws an error, stop parsing the script
-            $request = $this->parseAndCreateRequest($graphQLQuery, $variables, $operationName);
+            $request = $this->parseAndCreateRequest(
+                $graphQLQuery,
+                $variables,
+                $enableMultipleQueryExecution,
+                $operationName
+            );
             // Converting the query could also throw an Exception
             $fieldQueryPaths = $this->convertRequestToFieldQueryPaths($request);
         } catch (Exception $e) {
@@ -349,12 +361,15 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
      * @return void
      */
     protected function parseAndCreateRequest(
-        $payload,
-        $variables = [],
+        string $payload,
+        array $variables,
+        bool $enableMultipleQueryExecution,
         ?string $operationName = null
     ): Request {
         if (empty($payload)) {
-            throw new InvalidArgumentException($this->translationAPI->__('Must provide an operation.'));
+            throw new InvalidArgumentException(
+                $this->translationAPI->__('Must provide an operation.', 'graphql-query')
+            );
         }
 
         $parser  = new Parser();
@@ -362,7 +377,51 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
 
         // GraphiQL sends the operationName to execute in the payload, under "operationName"
         // This is required when the payload contains multiple queries
-        if (!is_null($operationName)) {
+        if (is_null($operationName)) {
+            /**
+             * If not enabling multiple query execution, validate that
+             * only one operation was submitted.
+             *
+             * From the GraphQL spec:
+             *
+             * > If operationName is null:
+             * >     If document contains exactly one operation.
+             * >         Return the Operation contained in the document.
+             * >     Otherwise produce a query error requiring operationName.
+             *
+             * @see https://spec.graphql.org/draft/#GetOperation()
+             * @see https://spec.graphql.org/draft/#sel-EANLHDBFBGCBFDCBnmD
+             */
+            if (!$enableMultipleQueryExecution) {
+                $operationCount = count($parsedData['queryOperations']) + count($parsedData['mutationOperations']);
+                if ($operationCount > 1) {
+                    throw new InvalidArgumentException(sprintf(
+                        $this->translationAPI->__(
+                            'Feature \'Multiple Query Execution\' is not enabled, so can execute 1 operation only, but %s operations were submitted (\'%s\')',
+                            'graphql-query'
+                        ),
+                        $operationCount,
+                        implode(
+                            '\', \'',
+                            array_merge(
+                                array_map(
+                                    function (array $operation): string {
+                                        return $operation['name'];
+                                    },
+                                    $parsedData['queryOperations']
+                                ),
+                                array_map(
+                                    function (array $operation): string {
+                                        return $operation['name'];
+                                    },
+                                    $parsedData['mutationOperations']
+                                )
+                            )
+                        )
+                    ));
+                }
+            }
+        } else {
             /**
              * Hack! Because GraphiQL does not allow to execute more than 1 operation,
              * (so it doesn't support query batching), then this artificial query
@@ -371,7 +430,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
              *   query __ALL { id }
              * ```
              */
-            if (strtoupper($operationName) == ClientSymbols::GRAPHIQL_QUERY_BATCHING_OPERATION_NAME) {
+            if ($enableMultipleQueryExecution && strtoupper($operationName) == ClientSymbols::GRAPHIQL_QUERY_BATCHING_OPERATION_NAME) {
                 // Find the position and number of queries processed by this operation
                 foreach ($parsedData['queryOperations'] as $queryOperation) {
                     if ($queryOperation['name'] == $operationName) {
@@ -394,8 +453,15 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                     }
                 }
             } else {
-                // Find the position and number of queries processed by this operation
-                foreach ($parsedData['queryOperations'] as $queryOperation) {
+                /**
+                 * Find the position and number of queries processed by this operation
+                 * If the operation is the same one, then that's it, retrieve it.
+                 *
+                 * Otherwise, remove it from the entry, so that if sending an operationName,
+                 * that does not exist, the set to execute is an empty array
+                 */
+                for ($i = count($parsedData['queryOperations']) - 1; $i >= 0; $i--) {
+                    $queryOperation = $parsedData['queryOperations'][$i];
                     if ($queryOperation['name'] == $operationName) {
                         $parsedData['queries'] = array_slice(
                             $parsedData['queries'],
@@ -403,9 +469,16 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                             $queryOperation['numberItems']
                         );
                         break;
+                    } else {
+                        array_splice(
+                            $parsedData['queries'],
+                            $queryOperation['position'],
+                            $queryOperation['numberItems']
+                        );
                     }
                 }
-                foreach ($parsedData['mutationOperations'] as $mutationOperation) {
+                for ($i = count($parsedData['mutationOperations']) - 1; $i >= 0; $i--) {
+                    $mutationOperation = $parsedData['mutationOperations'][$i];
                     if ($mutationOperation['name'] == $operationName) {
                         $parsedData['mutations'] = array_slice(
                             $parsedData['mutations'],
@@ -413,7 +486,27 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                             $mutationOperation['numberItems']
                         );
                         break;
+                    } else {
+                        array_splice(
+                            $parsedData['mutations'],
+                            $mutationOperation['position'],
+                            $mutationOperation['numberItems']
+                        );
                     }
+                }
+                /**
+                 * From the GraphQL spec:
+                 *
+                 * > If operation was not found, produce a query error.
+                 *
+                 * @see https://spec.graphql.org/draft/#GetOperation()
+                 * @see https://spec.graphql.org/draft/#sel-IANLHCDBDCAACCmB3L
+                 */
+                if (empty($parsedData['queries']) && empty($parsedData['mutations'])) {
+                    throw new InvalidArgumentException(sprintf(
+                        $this->translationAPI->__('No operation with name \'%s\' was submitted.', 'graphql-query'),
+                        $operationName
+                    ));
                 }
             }
         }
