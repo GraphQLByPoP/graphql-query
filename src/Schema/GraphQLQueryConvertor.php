@@ -107,7 +107,11 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             $location = ($e instanceof LocationableExceptionInterface) ?
                 $e->getLocation()->toArray() :
                 null;
-            $this->feedbackMessageStore->addQueryError($errorMessage, ['location' => $location]);
+            $extensions = [];
+            if (!is_null($location)) {
+                $extensions['location'] = $location;
+            }
+            $this->feedbackMessageStore->addQueryError($errorMessage, $extensions);
             // Returning nothing will not process the query
             return [];
         }
