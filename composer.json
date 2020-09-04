@@ -19,7 +19,7 @@
     "prefer-stable": true,
     "require": {
         "php": "~7.2",
-        "getpop/field-query": "~0.1",
+        "getpop/field-query": "dev-master",
         "getpop/engine": "dev-master",
         "getpop/api-graphql": "dev-master",
         "graphql-by-pop/graphql-parser": "dev-master"
