@@ -11,6 +11,10 @@ class GraphQLQueryConvertorFacade
 {
     public static function getInstance(): GraphQLQueryConvertorInterface
     {
-        return ContainerBuilderFactory::getInstance()->get('graphql_query_convertor');
+        /**
+         * @var GraphQLQueryConvertorInterface
+         */
+        $service = ContainerBuilderFactory::getInstance()->get('graphql_query_convertor');
+        return $service;
     }
 }
