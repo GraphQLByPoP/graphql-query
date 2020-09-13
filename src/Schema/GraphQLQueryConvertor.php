@@ -143,7 +143,26 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
              * then replace it with an expression, so its value can be computed on runtime
              */
             return QueryHelpers::getExpressionQuery($value->getName());
-        } elseif ($value instanceof VariableReference || $value instanceof Variable || $value instanceof Literal) {
+        } elseif ($value instanceof VariableReference || $value instanceof Variable) {
+            return $value->getValue();
+        } elseif ($value instanceof Literal) {
+            /**
+             * Support resolving other fields from the same type in field/directive arguments:
+             * Replace posts(searchfor: "{{title}}") with posts(searchfor: "sprintf(%s, [title()])")
+             */
+            if (ComponentConfiguration::enableEmbeddableFields()) {
+                // Inside the string, everything of pattern "{{field}}" is a field from the same type
+                return preg_replace_callback(
+                    '/(.*)?' . QuerySymbols::EMBEDDABLE_FIELD_PREFIX . '([a-zA-Z_][0-9a-zA-Z_]*)' . QuerySymbols::EMBEDDABLE_FIELD_SUFFIX . '(.*)?/',
+                    function ($matches) {
+                        $everythingBefore = $matches[1];
+                        $everythingAfter = $matches[2];
+                        $fieldName = $matches[3];
+                        return 'sprintf("' . $everythingBefore . '%s' . $fieldName . '", [' . $everythingAfter . '()])';
+                    },
+                    $value->getValue()
+                );
+            }
             return $value->getValue();
         } elseif (is_array($value)) {
             /**
