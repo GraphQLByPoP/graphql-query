@@ -146,24 +146,56 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         } elseif ($value instanceof VariableReference || $value instanceof Variable) {
             return $value->getValue();
         } elseif ($value instanceof Literal) {
+            $literal = $value->getValue();
             /**
              * Support resolving other fields from the same type in field/directive arguments:
              * Replace posts(searchfor: "{{title}}") with posts(searchfor: "sprintf(%s, [title()])")
              */
             if (ComponentConfiguration::enableEmbeddableFields()) {
-                // Inside the string, everything of pattern "{{field}}" is a field from the same type
-                return preg_replace_callback(
-                    '/(.*)?' . QuerySymbols::EMBEDDABLE_FIELD_PREFIX . '([a-zA-Z_][0-9a-zA-Z_]*)' . QuerySymbols::EMBEDDABLE_FIELD_SUFFIX . '(.*)?/',
-                    function ($matches) {
-                        $everythingBefore = $matches[1];
-                        $everythingAfter = $matches[2];
-                        $fieldName = $matches[3];
-                        return 'sprintf("' . $everythingBefore . '%s' . $fieldName . '", [' . $everythingAfter . '()])';
-                    },
-                    $value->getValue()
-                );
+                /**
+                 * Inside the string, everything of pattern "{{field}}" is a field from the same type
+                 * Use a single `string` for all matches.
+                 * Eg: "title is {{title}} and authorID is {{authorID}}" is replaced
+                 * as "sprintf(title is %s and authorID is %s, [title(), authorID()])"
+                 */
+                $matches = [];
+                if (preg_match_all(
+                    '/' . QuerySymbols::EMBEDDABLE_FIELD_PREFIX . '([a-zA-Z_][0-9a-zA-Z_]*)' . QuerySymbols::EMBEDDABLE_FIELD_SUFFIX . '/',
+                    $literal,
+                    $matches
+                )) {
+                    $fieldQueryInterpreter = FieldQueryInterpreterFacade::getInstance();
+                    // A field can appear more than once. Use %1$s instead of %s to handle all instances
+                    $fieldEmbeds = array_unique($matches[0]); // ["{{title}}"]
+                    $fieldNames = array_unique($matches[1]); // ["title"]
+                    $fieldCount = count($fieldEmbeds);
+                    $fields = [];
+                    for ($i = 0; $i < $fieldCount; $i++) {
+                        $literal = str_replace(
+                            $fieldEmbeds[$i],
+                            '%' . ($i + 1) . '$s', // %1$s
+                            $literal
+                        );
+                        // Add "()" to the fieldName, to make it resolvable
+                        $fields[] = $fieldQueryInterpreter->getField(
+                            $fieldNames[$i],
+                            [],
+                            null,
+                            false,
+                            [],
+                            true // <= this adds the () at the end
+                        );
+                    }
+                    return $fieldQueryInterpreter->getField(
+                        'sprintf',
+                        [
+                            'string' => $literal,
+                            'values' => $fields
+                        ]
+                    );
+                }
             }
-            return $value->getValue();
+            return $literal;
         } elseif (is_array($value)) {
             /**
              * When coming from the InputList, its `getValue` is an array of Variables
