@@ -12,31 +12,12 @@ class ComponentConfiguration
     use ComponentConfigurationTrait;
 
     private static $enableVariablesAsExpressions;
-    private static $enableEmbeddableFields;
 
     public static function enableVariablesAsExpressions(): bool
     {
         // Define properties
         $envVariable = Environment::ENABLE_VARIABLES_AS_EXPRESSIONS;
         $selfProperty = &self::$enableVariablesAsExpressions;
-        $defaultValue = false;
-        $callback = [EnvironmentValueHelpers::class, 'toBool'];
-
-        // Initialize property from the environment/hook
-        self::maybeInitializeConfigurationValue(
-            $envVariable,
-            $selfProperty,
-            $defaultValue,
-            $callback
-        );
-        return $selfProperty;
-    }
-
-    public static function enableEmbeddableFields(): bool
-    {
-        // Define properties
-        $envVariable = Environment::ENABLE_EMBEDDABLE_FIELDS;
-        $selfProperty = &self::$enableEmbeddableFields;
         $defaultValue = false;
         $callback = [EnvironmentValueHelpers::class, 'toBool'];
 

@@ -143,59 +143,8 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
              * then replace it with an expression, so its value can be computed on runtime
              */
             return QueryHelpers::getExpressionQuery($value->getName());
-        } elseif ($value instanceof VariableReference || $value instanceof Variable) {
+        } elseif ($value instanceof VariableReference || $value instanceof Variable || $value instanceof Literal) {
             return $value->getValue();
-        } elseif ($value instanceof Literal) {
-            $literal = $value->getValue();
-            /**
-             * Support resolving other fields from the same type in field/directive arguments:
-             * Replace posts(searchfor: "{{title}}") with posts(searchfor: "sprintf(%s, [title()])")
-             */
-            if (ComponentConfiguration::enableEmbeddableFields()) {
-                /**
-                 * Inside the string, everything of pattern "{{field}}" is a field from the same type
-                 * Use a single `string` for all matches.
-                 * Eg: "title is {{title}} and authorID is {{authorID}}" is replaced
-                 * as "sprintf(title is %s and authorID is %s, [title(), authorID()])"
-                 */
-                $matches = [];
-                if (preg_match_all(
-                    '/' . QuerySymbols::EMBEDDABLE_FIELD_PREFIX . '([a-zA-Z_][0-9a-zA-Z_]*)' . QuerySymbols::EMBEDDABLE_FIELD_SUFFIX . '/',
-                    $literal,
-                    $matches
-                )) {
-                    $fieldQueryInterpreter = FieldQueryInterpreterFacade::getInstance();
-                    // A field can appear more than once. Use %1$s instead of %s to handle all instances
-                    $fieldEmbeds = array_unique($matches[0]); // ["{{title}}"]
-                    $fieldNames = array_unique($matches[1]); // ["title"]
-                    $fieldCount = count($fieldEmbeds);
-                    $fields = [];
-                    for ($i = 0; $i < $fieldCount; $i++) {
-                        $literal = str_replace(
-                            $fieldEmbeds[$i],
-                            '%' . ($i + 1) . '$s', // %1$s
-                            $literal
-                        );
-                        // Add "()" to the fieldName, to make it resolvable
-                        $fields[] = $fieldQueryInterpreter->getField(
-                            $fieldNames[$i],
-                            [],
-                            null,
-                            false,
-                            [],
-                            true // <= this adds the () at the end
-                        );
-                    }
-                    return $fieldQueryInterpreter->getField(
-                        'sprintf',
-                        [
-                            'string' => $literal,
-                            'values' => $fields
-                        ]
-                    );
-                }
-            }
-            return $literal;
         } elseif (is_array($value)) {
             /**
              * When coming from the InputList, its `getValue` is an array of Variables
