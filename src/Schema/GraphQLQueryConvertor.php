@@ -31,8 +31,8 @@ use Youshido\GraphQL\Parser\Ast\ArgumentValue\Literal;
 
 class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
 {
-    protected $translationAPI;
-    protected $feedbackMessageStore;
+    protected TranslationAPIInterface $translationAPI;
+    protected FeedbackMessageStoreInterface $feedbackMessageStore;
 
     public function __construct(
         TranslationAPIInterface $translationAPI,
