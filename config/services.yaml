@@ -1,9 +1,7 @@
 services:
     _defaults:
-        bind:
-            PoP\Translation\TranslationAPIInterface: '@translation_api'
-            PoP\ComponentModel\Schema\FeedbackMessageStoreInterface: '@feedback_message_store'
-
-    graphql_query_convertor:
-        class: \GraphQLByPoP\GraphQLQuery\Schema\GraphQLQueryConvertor
         public: true
+        autowire: true
+
+    GraphQLByPoP\GraphQLQuery\Schema\GraphQLQueryConvertorInterface:
+        class: \GraphQLByPoP\GraphQLQuery\Schema\GraphQLQueryConvertor
