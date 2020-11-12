@@ -44,14 +44,18 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
 
     /**
      * Convert the GraphQL Query to PoP query in its requested form
+     * @return array 2 items: [operationType (string), fieldQuery (string)]
      */
     public function convertFromGraphQLToFieldQuery(
         string $graphQLQuery,
         ?array $variables = [],
         bool $enableMultipleQueryExecution = false,
         ?string $operationName = null
-    ): string {
-        $operationFieldQueryPaths = $this->convertFromGraphQLToFieldQueryPaths(
+    ): array {
+        list(
+            $operationType,
+            $operationFieldQueryPaths
+        ) = $this->convertFromGraphQLToFieldQueryPaths(
             $graphQLQuery,
             $variables ?? [],
             $enableMultipleQueryExecution,
@@ -73,16 +77,20 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 $operationFieldQueries
             );
         }
-        // Join all operators with a ";"
-        return implode(
-            QuerySyntax::SYMBOL_OPERATIONS_SEPARATOR,
-            $fieldQueries
-        );
+        return [
+            $operationType,
+            // Join all operators with a ";"
+            implode(
+                QuerySyntax::SYMBOL_OPERATIONS_SEPARATOR,
+                $fieldQueries
+            )
+        ];
     }
 
     /**
      * Convert the GraphQL Query to an array containing all the
      * parts from the query
+     * @return array 2 items: [operationType (string), fieldQueryPaths (array)]
      */
     protected function convertFromGraphQLToFieldQueryPaths(
         string $graphQLQuery,
@@ -99,7 +107,10 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 $operationName
             );
             // Converting the query could also throw an Exception
-            $fieldQueryPaths = $this->convertRequestToFieldQueryPaths($request);
+            list(
+                $operationType,
+                $fieldQueryPaths
+            ) = $this->convertRequestToFieldQueryPaths($request);
         } catch (Exception $e) {
             // Save the error
             $errorMessage = $e->getMessage();
@@ -113,9 +124,15 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             }
             $this->feedbackMessageStore->addQueryError($errorMessage, $extensions);
             // Returning nothing will not process the query
-            return [];
+            return [
+                null,
+                []
+            ];
         }
-        return $fieldQueryPaths;
+        return [
+            $operationType,
+            $fieldQueryPaths
+        ];
     }
 
     /**
@@ -336,17 +353,21 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
     /**
      * Convert the GraphQL to its equivalent fieldQuery.
      * The GraphQL syntax is explained in graphql.org
+     * @return array 2 items: [operationType (string), fieldQueryPaths (array)]
      *
      * @see https://graphql.org/learn/queries/
      */
     protected function convertRequestToFieldQueryPaths(Request $request): array
     {
         $fieldQueryPaths = [];
-        $queriesOrMutations = array_merge(
-            $request->getQueries(),
-            $request->getMutations()
-        );
-        foreach ($queriesOrMutations as $query) {
+        // Either it is a query or a mutation
+        if ($queries = $request->getMutations()) {
+            $operationType = OperationTypes::MUTATION;
+        } else {
+            $queries = $request->getQueries();
+            $operationType = OperationTypes::QUERY;
+        }
+        foreach ($queries as $query) {
             $operationLocation = $query->getLocation();
             $operationID = sprintf(
                 '%s-%s',
@@ -358,7 +379,10 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                 $this->getFieldPathsFromQuery($request, $query)
             );
         }
-        return $fieldQueryPaths;
+        return [
+            $operationType,
+            $fieldQueryPaths
+        ];
     }
 
     /**
