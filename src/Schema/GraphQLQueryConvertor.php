@@ -342,7 +342,11 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
     protected function convertRequestToFieldQueryPaths(Request $request): array
     {
         $fieldQueryPaths = [];
-        foreach ($request->getQueries() as $query) {
+        $queriesOrMutations = array_merge(
+            $request->getQueries(),
+            $request->getMutations()
+        );
+        foreach ($queriesOrMutations as $query) {
             $operationLocation = $query->getLocation();
             $operationID = sprintf(
                 '%s-%s',
