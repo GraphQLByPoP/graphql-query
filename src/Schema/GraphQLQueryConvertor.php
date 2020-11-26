@@ -360,14 +360,24 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
     protected function convertRequestToFieldQueryPaths(Request $request): array
     {
         $fieldQueryPaths = [];
-        // Either it is a query or a mutation
-        if ($queries = $request->getMutations()) {
+        // It is either is a query or a mutation
+        $mutations = $request->getMutations();
+        $queries = $request->getQueries();
+        if ($mutations) {
+            $queriesOrMutations = $mutations;
             $operationType = OperationTypes::MUTATION;
         } else {
-            $queries = $request->getQueries();
+            $queriesOrMutations = $queries;
             $operationType = OperationTypes::QUERY;
         }
-        foreach ($queries as $query) {
+        // BUT, when doing multiple-query execution, it could pass both a query AND a mutation!
+        // In that case, execute mutations only, and display a warning on the query
+        if ($queries && $mutations) {
+            $this->feedbackMessageStore->addQueryWarning(
+                $this->translationAPI->__('Cannot execute both queries AND mutations, hence the queries have been ignored, resolving mutations only', 'graphql-query')
+            );
+        }
+        foreach ($queriesOrMutations as $query) {
             $operationLocation = $query->getLocation();
             $operationID = sprintf(
                 '%s-%s',
