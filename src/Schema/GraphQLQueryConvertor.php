@@ -492,39 +492,49 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                  * Otherwise, remove it from the entry, so that if sending an operationName,
                  * that does not exist, the set to execute is an empty array
                  */
-                for ($i = count($parsedData['queryOperations']) - 1; $i >= 0; $i--) {
-                    $queryOperation = $parsedData['queryOperations'][$i];
-                    if ($queryOperation['name'] == $operationName) {
-                        $parsedData['queries'] = array_slice(
-                            $parsedData['queries'],
-                            $queryOperation['position'],
-                            $queryOperation['numberItems']
-                        );
-                        break;
-                    } else {
-                        array_splice(
-                            $parsedData['queries'],
-                            $queryOperation['position'],
-                            $queryOperation['numberItems']
-                        );
+                if ($parsedData['queryOperations']) {
+                    for ($i = count($parsedData['queryOperations']) - 1; $i >= 0; $i--) {
+                        $queryOperation = $parsedData['queryOperations'][$i];
+                        if ($queryOperation['name'] == $operationName) {
+                            $parsedData['queries'] = array_slice(
+                                $parsedData['queries'],
+                                $queryOperation['position'],
+                                $queryOperation['numberItems']
+                            );
+                            break;
+                        } else {
+                            array_splice(
+                                $parsedData['queries'],
+                                $queryOperation['position'],
+                                $queryOperation['numberItems']
+                            );
+                        }
                     }
+                } else {
+                    // Make sure no queries are executed
+                    unset($parsedData['queries']);
                 }
-                for ($i = count($parsedData['mutationOperations']) - 1; $i >= 0; $i--) {
-                    $mutationOperation = $parsedData['mutationOperations'][$i];
-                    if ($mutationOperation['name'] == $operationName) {
-                        $parsedData['mutations'] = array_slice(
-                            $parsedData['mutations'],
-                            $mutationOperation['position'],
-                            $mutationOperation['numberItems']
-                        );
-                        break;
-                    } else {
-                        array_splice(
-                            $parsedData['mutations'],
-                            $mutationOperation['position'],
-                            $mutationOperation['numberItems']
-                        );
+                if ($parsedData['mutationOperations']) {
+                    for ($i = count($parsedData['mutationOperations']) - 1; $i >= 0; $i--) {
+                        $mutationOperation = $parsedData['mutationOperations'][$i];
+                        if ($mutationOperation['name'] == $operationName) {
+                            $parsedData['mutations'] = array_slice(
+                                $parsedData['mutations'],
+                                $mutationOperation['position'],
+                                $mutationOperation['numberItems']
+                            );
+                            break;
+                        } else {
+                            array_splice(
+                                $parsedData['mutations'],
+                                $mutationOperation['position'],
+                                $mutationOperation['numberItems']
+                            );
+                        }
                     }
+                } else {
+                    // Make sure no mutations are executed
+                    unset($parsedData['mutations']);
                 }
                 /**
                  * From the GraphQL spec:
