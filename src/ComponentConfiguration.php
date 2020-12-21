@@ -12,7 +12,7 @@ class ComponentConfiguration
     use ComponentConfigurationTrait;
 
     private static $enableVariablesAsExpressions;
-    private static $enableNestedDirectives;
+    private static $enableComposableDirectives;
 
     public static function enableVariablesAsExpressions(): bool
     {
@@ -32,11 +32,11 @@ class ComponentConfiguration
         return $selfProperty;
     }
 
-    public static function enableNestedDirectives(): bool
+    public static function enableComposableDirectives(): bool
     {
         // Define properties
-        $envVariable = Environment::ENABLE_NESTED_DIRECTIVES;
-        $selfProperty = &self::$enableNestedDirectives;
+        $envVariable = Environment::ENABLE_COMPOSABLE_DIRECTIVES;
+        $selfProperty = &self::$enableComposableDirectives;
         $defaultValue = false;
         $callback = [EnvironmentValueHelpers::class, 'toBool'];
 

@@ -199,18 +199,18 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         $arguments = $this->convertArguments($field->getArguments());
         $directives = [];
         $fieldDirectives = $field->getDirectives();
-        $rootAndNestedDirectives = [];
-        $rootDirectivePositions = $nestedDirectivesByPosition = [];
+        $rootAndComposableDirectives = [];
+        $rootDirectivePositions = $composableDirectivesByPosition = [];
         /**
-         * Enable nested directives:
+         * Enable composable directives:
          * Executing <directive1<directive11,directive12<directive123>>> can be done doing
          * @directive1 @directive11(nestedUnder: -1) @directive12(nestedUnder: -2) @directive123(nestedUnder -1)
          * In this case, "nestedUnder" indicates the relative position from the directive,
          * to its parent directive (under which it must be nested).
          */
-        $enableNestedDirectives = ComponentConfiguration::enableNestedDirectives();
+        $enableComposableDirectives = ComponentConfiguration::enableComposableDirectives();
         /**
-         * The first pass goes from right to left, as to enable nested directives:
+         * The first pass goes from right to left, as to enable composable directives:
          * because we can have <directive1<directive2<directive3>>>, represented as
          * @directive1 @directive2(nestedUnder: -1) @directive3(nestedUnder -1),
          * then directive 3 must first be added under directive2, and then this one
@@ -223,8 +223,8 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         foreach (array_reverse($fieldDirectives) as $directive) {
             $directiveArgs = $this->convertArguments($directive->getArguments());
             $nestedUnder = null;
-            $directiveNestedDirectives = '';
-            if ($enableNestedDirectives) {
+            $directiveComposableDirectives = '';
+            if ($enableComposableDirectives) {
                 /**
                  * Check if it's a nested directive and, if so, remove param "nestedUnder"
                  * which is not used by the directive (it's a "meta" param)
@@ -238,12 +238,12 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                  * has been defined as composing to another directive,
                  * it already has this data
                  */
-                if (isset($nestedDirectivesByPosition[$counter])) {
-                    $directiveNestedDirectives = QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING . implode(
+                if (isset($composableDirectivesByPosition[$counter])) {
+                    $directiveComposableDirectives = QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING . implode(
                         QuerySyntax::SYMBOL_FIELDDIRECTIVE_SEPARATOR,
                         array_map(
                             [$fieldQueryInterpreter, 'convertDirectiveToFieldDirective'],
-                            $nestedDirectivesByPosition[$counter]
+                            $composableDirectivesByPosition[$counter]
                         )
                     ) . QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING;
                 }
@@ -252,10 +252,10 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
             $convertedDirective = $fieldQueryInterpreter->getDirective(
                 $directiveName,
                 $directiveArgs,
-                $directiveNestedDirectives
+                $directiveComposableDirectives
             );
-            $rootAndNestedDirectives[$counter] = $convertedDirective;
-            if ($enableNestedDirectives && $nestedUnder !== null) {
+            $rootAndComposableDirectives[$counter] = $convertedDirective;
+            if ($enableComposableDirectives && $nestedUnder !== null) {
                 if (!is_int($nestedUnder) || !($nestedUnder < 0)) {
                     $this->feedbackMessageStore->addQueryError(
                         sprintf(
@@ -278,8 +278,8 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                     // From the current position, move "$nestedUnder" positions to the left
                     // (it's a negative int)
                     $nestedUnderPos = $counter + $nestedUnder;
-                    $nestedDirectivesByPosition[$nestedUnderPos] ??= [];
-                    $nestedDirectivesByPosition[$nestedUnderPos][] = $convertedDirective;
+                    $composableDirectivesByPosition[$nestedUnderPos] ??= [];
+                    $composableDirectivesByPosition[$nestedUnderPos][] = $convertedDirective;
                 }
             } else {
                 // Because we're iterating from right to left, place the item
@@ -292,7 +292,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
          * Move the root directives (i.e. not nested ones) to the directives array
          */
         foreach ($rootDirectivePositions as $pos) {
-            $rootDirective = $rootAndNestedDirectives[$pos];
+            $rootDirective = $rootAndComposableDirectives[$pos];
             $directives[] = $rootDirective;
         }
         return $fieldQueryInterpreter->getField(
