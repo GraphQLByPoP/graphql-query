@@ -198,11 +198,102 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
         // Convert the arguments and directives into an array
         $arguments = $this->convertArguments($field->getArguments());
         $directives = [];
-        foreach ($field->getDirectives() as $directive) {
-            $directives[] = $fieldQueryInterpreter->getDirective(
-                $directive->getName(),
-                $this->convertArguments($directive->getArguments())
+        $fieldDirectives = $field->getDirectives();
+        $rootAndNestedDirectives = [];
+        $rootDirectivePositions = $nestedDirectivesByPosition = [];
+        /**
+         * Enable nested directives:
+         * Executing <directive1<directive11,directive12<directive123>>> can be done doing
+         * @directive1 @directive11(nestedUnder: -1) @directive12(nestedUnder: -2) @directive123(nestedUnder -1)
+         * In this case, "nestedUnder" indicates the relative position from the directive,
+         * to its parent directive (under which it must be nested).
+         */
+        $enableNestedDirectives = ComponentConfiguration::enableNestedDirectives();
+        /**
+         * The first pass goes from right to left, as to enable nested directives:
+         * because we can have <directive1<directive2<directive3>>>, represented as
+         * @directive1 @directive2(nestedUnder: -1) @directive3(nestedUnder -1),
+         * then directive 3 must first be added under directive2, and then this one
+         * must be added under directive1.
+         * If we iterated from left to right, directive3 would not be added under
+         * directive1=>directive2
+         */
+        $directiveCount = count($fieldDirectives);
+        $counter = $directiveCount - 1;
+        foreach (array_reverse($fieldDirectives) as $directive) {
+            $directiveArgs = $this->convertArguments($directive->getArguments());
+            $nestedUnder = null;
+            $directiveNestedDirectives = '';
+            if ($enableNestedDirectives) {
+                /**
+                 * Check if it's a nested directive and, if so, remove param "nestedUnder"
+                 * which is not used by the directive (it's a "meta" param)
+                 */
+                if (isset($directiveArgs['nestedUnder'])) {
+                    $nestedUnder = $directiveArgs['nestedUnder'];
+                    unset($directiveArgs['nestedUnder']);
+                }
+                /**
+                 * Because we're iterating from right to left, if this directive
+                 * has been defined as composing to another directive,
+                 * it already has this data
+                 */
+                if (isset($nestedDirectivesByPosition[$counter])) {
+                    $directiveNestedDirectives = QuerySyntax::SYMBOL_FIELDDIRECTIVE_OPENING . implode(
+                        QuerySyntax::SYMBOL_FIELDDIRECTIVE_SEPARATOR,
+                        array_map(
+                            [$fieldQueryInterpreter, 'convertDirectiveToFieldDirective'],
+                            $nestedDirectivesByPosition[$counter]
+                        )
+                    ) . QuerySyntax::SYMBOL_FIELDDIRECTIVE_CLOSING;
+                }
+            }
+            $directiveName = $directive->getName();
+            $convertedDirective = $fieldQueryInterpreter->getDirective(
+                $directiveName,
+                $directiveArgs,
+                $directiveNestedDirectives
             );
+            $rootAndNestedDirectives[$counter] = $convertedDirective;
+            if ($enableNestedDirectives && $nestedUnder !== null) {
+                if (!is_int($nestedUnder) || !($nestedUnder < 0)) {
+                    $this->feedbackMessageStore->addQueryError(
+                        sprintf(
+                            $this->translationAPI->__('Param \'%s\' must be a negative integer, hence value \'%s\' in directive \'%s\' has been ignored', 'graphql-query'),
+                            'nestedUnder',
+                            $nestedUnder,
+                            $directiveName
+                        )
+                    );
+                } elseif ((-1 * $nestedUnder) > $counter) {
+                    $this->feedbackMessageStore->addQueryError(
+                        sprintf(
+                            $this->translationAPI->__('There is no directive at position \'%s\' (set under param \'%s\') relative to directive \'%s\'', 'graphql-query'),
+                            $nestedUnder,
+                            'nestedUnder',
+                            $directiveName
+                        )
+                    );
+                } else {
+                    // From the current position, move "$nestedUnder" positions to the left
+                    // (it's a negative int)
+                    $nestedUnderPos = $counter + $nestedUnder;
+                    $nestedDirectivesByPosition[$nestedUnderPos] ??= [];
+                    $nestedDirectivesByPosition[$nestedUnderPos][] = $convertedDirective;
+                }
+            } else {
+                // Because we're iterating from right to left, place the item
+                // at the beginning
+                array_unshift($rootDirectivePositions, $counter);
+            }
+            $counter--;
+        }
+        /**
+         * Move the root directives (i.e. not nested ones) to the directives array
+         */
+        foreach ($rootDirectivePositions as $pos) {
+            $rootDirective = $rootAndNestedDirectives[$pos];
+            $directives[] = $rootDirective;
         }
         return $fieldQueryInterpreter->getField(
             $field->getName(),
