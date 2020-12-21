@@ -229,9 +229,9 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                  * Check if it's a nested directive and, if so, remove param "nestedUnder"
                  * which is not used by the directive (it's a "meta" param)
                  */
-                if (isset($directiveArgs['nestedUnder'])) {
-                    $nestedUnder = $directiveArgs['nestedUnder'];
-                    unset($directiveArgs['nestedUnder']);
+                if (isset($directiveArgs[SchemaElements::DIRECTIVE_PARAM_NESTED_UNDER])) {
+                    $nestedUnder = $directiveArgs[SchemaElements::DIRECTIVE_PARAM_NESTED_UNDER];
+                    unset($directiveArgs[SchemaElements::DIRECTIVE_PARAM_NESTED_UNDER]);
                 }
                 /**
                  * Because we're iterating from right to left, if this directive
@@ -260,7 +260,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                     $this->feedbackMessageStore->addQueryError(
                         sprintf(
                             $this->translationAPI->__('Param \'%s\' must be a negative integer, hence value \'%s\' in directive \'%s\' has been ignored', 'graphql-query'),
-                            'nestedUnder',
+                            SchemaElements::DIRECTIVE_PARAM_NESTED_UNDER,
                             $nestedUnder,
                             $directiveName
                         )
@@ -270,7 +270,7 @@ class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
                         sprintf(
                             $this->translationAPI->__('There is no directive at position \'%s\' (set under param \'%s\') relative to directive \'%s\'', 'graphql-query'),
                             $nestedUnder,
-                            'nestedUnder',
+                            SchemaElements::DIRECTIVE_PARAM_NESTED_UNDER,
                             $directiveName
                         )
                     );
