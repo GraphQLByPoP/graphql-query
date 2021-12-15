@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace GraphQLByPoP\GraphQLQuery\Schema;
 
 use Exception;
-use GraphQLByPoP\GraphQLParser\Exception\Interfaces\LocationableExceptionInterface;
-use GraphQLByPoP\GraphQLParser\Execution\Request;
-use GraphQLByPoP\GraphQLParser\Parser\Ast\ArgumentValue\InputList;
-use GraphQLByPoP\GraphQLParser\Parser\Ast\ArgumentValue\InputObject;
-use GraphQLByPoP\GraphQLParser\Parser\Ast\ArgumentValue\Literal;
-use GraphQLByPoP\GraphQLParser\Parser\Ast\ArgumentValue\Variable;
-use GraphQLByPoP\GraphQLParser\Parser\Ast\ArgumentValue\VariableReference;
-use GraphQLByPoP\GraphQLParser\Parser\Ast\Field;
-use GraphQLByPoP\GraphQLParser\Parser\Ast\FragmentReference;
-use GraphQLByPoP\GraphQLParser\Parser\Ast\Interfaces\FieldInterface;
-use GraphQLByPoP\GraphQLParser\Parser\Ast\Query;
-use GraphQLByPoP\GraphQLParser\Parser\Ast\TypedFragmentReference;
-use GraphQLByPoP\GraphQLParser\Parser\Parser;
-use GraphQLByPoP\GraphQLParser\Validator\RequestValidator\RequestValidator;
+use PoP\GraphQLParser\Exception\Interfaces\LocationableExceptionInterface;
+use PoP\GraphQLParser\Execution\Request;
+use PoP\GraphQLParser\Parser\Ast\ArgumentValue\InputList;
+use PoP\GraphQLParser\Parser\Ast\ArgumentValue\InputObject;
+use PoP\GraphQLParser\Parser\Ast\ArgumentValue\Literal;
+use PoP\GraphQLParser\Parser\Ast\ArgumentValue\Variable;
+use PoP\GraphQLParser\Parser\Ast\ArgumentValue\VariableReference;
+use PoP\GraphQLParser\Parser\Ast\Field;
+use PoP\GraphQLParser\Parser\Ast\FragmentReference;
+use PoP\GraphQLParser\Parser\Ast\Interfaces\FieldInterface;
+use PoP\GraphQLParser\Parser\Ast\Query;
+use PoP\GraphQLParser\Parser\Ast\TypedFragmentReference;
+use PoP\GraphQLParser\Parser\Parser;
+use PoP\GraphQLParser\Validator\RequestValidator\RequestValidator;
 use GraphQLByPoP\GraphQLQuery\ComponentConfiguration;
 use InvalidArgumentException;
 use PoP\ComponentModel\Schema\FeedbackMessageStoreInterface;
@@ -27,7 +27,6 @@ use PoP\ComponentModel\Services\BasicServiceTrait;
 use PoP\Engine\DirectiveResolvers\IncludeDirectiveResolver;
 use PoP\FieldQuery\QueryHelpers;
 use PoP\FieldQuery\QuerySyntax;
-use Symfony\Contracts\Service\Attribute\Required;
 
 class GraphQLQueryConvertor implements GraphQLQueryConvertorInterface
 {
